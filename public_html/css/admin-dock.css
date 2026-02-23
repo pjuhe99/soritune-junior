@@ -1,0 +1,34 @@
+/* ============================================
+ * 관리자 전용 하단 독(dock) 메뉴
+ * admin IP에서만 JS로 동적 삽입
+ * ============================================ */
+.adock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:300;padding:0 10px calc(env(safe-area-inset-bottom,0px) + 8px);pointer-events:none;}
+.adock-bar{pointer-events:auto;display:flex;align-items:center;gap:2px;background:rgba(30,36,44,0.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-radius:16px;padding:6px 8px;box-shadow:0 -2px 24px rgba(0,0,0,0.25),0 0 0 1px rgba(255,255,255,0.08);}
+
+.adock-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:12px;color:rgba(255,255,255,0.55);font-size:10px;font-weight:600;letter-spacing:-0.2px;transition:all .15s ease;cursor:pointer;text-decoration:none;-webkit-tap-highlight-color:transparent;}
+.adock-item:active{transform:scale(0.92);}
+.adock-item:hover,.adock-item:focus{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.08);}
+.adock-item svg{opacity:0.6;transition:opacity .15s;}
+.adock-item:hover svg{opacity:0.9;}
+
+/* 현재 활성 페이지 */
+.adock-item.adock-active{color:#fff;background:rgba(255,255,255,0.12);}
+.adock-item.adock-active svg{opacity:1;}
+
+.adock-sep{width:1px;height:28px;background:rgba(255,255,255,0.12);margin:0 4px;flex-shrink:0;}
+
+/* 자동 토글 */
+.adock-auto{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 10px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+.adock-auto input{position:absolute;opacity:0;pointer-events:none;}
+.adock-auto-track{width:36px;height:20px;background:rgba(255,255,255,0.15);border-radius:10px;position:relative;transition:background .2s ease;}
+.adock-auto-thumb{position:absolute;left:2px;top:2px;width:16px;height:16px;background:#666;border-radius:50%;transition:all .2s ease;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
+.adock-auto input:checked~.adock-auto-track{background:rgba(76,175,80,0.5);}
+.adock-auto input:checked~.adock-auto-track .adock-auto-thumb{transform:translateX(16px);background:#4CAF50;}
+.adock-auto-text{font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:-0.2px;}
+.adock-auto input:checked~.adock-auto-text{color:rgba(76,175,80,0.85);}
+
+/* 독이 있을 때 본문 하단 여백 */
+body.has-adock .app-body{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 100px);}
+body.has-adock .mypage-body{padding-bottom:80px;}
+body.has-adock .login-body{padding-bottom:80px;}
+body.has-adock .ranking-body{padding-bottom:80px;}

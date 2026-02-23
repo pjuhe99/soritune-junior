@@ -1,0 +1,1276 @@
+/* ============================================
+ * 코치 페이지 CSS
+ * ============================================ */
+
+.coach-page {
+    background: var(--gray-100);
+}
+
+.coach-page .app-header {
+    background: var(--card-leader);
+}
+
+.coach-page .app-container {
+    background: var(--gray-100);
+}
+
+/* 코치 대시보드 */
+.coach-dashboard {
+    padding: var(--space-md);
+}
+
+.coach-welcome {
+    background: linear-gradient(135deg, var(--card-leader), #1976D2);
+    color: var(--white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+}
+
+.coach-welcome-name {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+}
+
+.coach-welcome-class {
+    font-size: var(--font-size-sm);
+    opacity: 0.8;
+    margin-top: 4px;
+}
+
+/* 탭 스타일 오버라이드 */
+.coach-page .tabs {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 4px;
+}
+
+.coach-page .tab-btn.active {
+    background: var(--card-leader);
+    color: var(--white);
+}
+
+/* ============================================
+ * 체크리스트
+ * ============================================ */
+.checklist-date-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.checklist-date-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    font-size: 18px;
+    color: var(--gray-600);
+    transition: all var(--transition-fast);
+}
+
+.checklist-date-btn:active {
+    background: var(--gray-100);
+}
+
+.checklist-current-date {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    min-width: 140px;
+    text-align: center;
+}
+
+.checklist-table {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+.checklist-header {
+    display: grid;
+    grid-template-columns: 1fr repeat(6, 44px);
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--gray-600);
+    text-align: center;
+}
+
+.checklist-header .col-name {
+    text-align: left;
+    font-size: var(--font-size-sm);
+}
+
+.checklist-row {
+    display: grid;
+    grid-template-columns: 1fr repeat(6, 44px);
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.checklist-row:last-child {
+    border-bottom: none;
+}
+
+.checklist-student-name {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+
+.checklist-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checklist-num {
+    width: 36px;
+    height: 30px;
+    text-align: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: #fff;
+    -moz-appearance: textfield;
+}
+.checklist-num::-webkit-outer-spin-button,
+.checklist-num::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.checklist-num:focus {
+    outline: none;
+    border-color: var(--main-bg);
+    box-shadow: 0 0 0 2px rgba(255, 126, 23, 0.15);
+}
+
+.checklist-bulk-num {
+    width: 36px;
+    height: 28px;
+    border: 1.5px solid #90CAF9;
+    border-radius: 8px;
+    background: #E3F2FD;
+    color: #1976D2;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.checklist-bulk-num:active {
+    background: #BBDEFB;
+}
+
+/* 일괄 체크 행 */
+.checklist-bulk {
+    display: grid;
+    grid-template-columns: 1fr repeat(6, 44px);
+    align-items: center;
+    padding: 10px 12px;
+    background: #FFF8E1;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.checklist-bulk-label {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--coin-number);
+}
+
+.checklist-actions {
+    display: flex;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    justify-content: flex-end;
+}
+
+/* 체크리스트 컬럼 헤더 */
+.cl-zoom { color: var(--card-passion); }
+.cl-posture { color: var(--card-posture); }
+.cl-sound { color: var(--card-steady); }
+.cl-band { color: var(--card-mission); }
+.cl-leader { color: var(--card-leader); }
+.cl-reboot { color: #00BCD4; }
+
+/* ============================================
+ * QR 출석
+ * ============================================ */
+.qr-section {
+    text-align: center;
+}
+
+.qr-create-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-xl);
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    width: 100%;
+}
+
+.qr-create-btn:active {
+    transform: scale(0.98);
+}
+
+.qr-create-icon {
+    width: 64px;
+    height: 64px;
+    background: var(--card-leader);
+    color: var(--white);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+
+.qr-create-text {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--black);
+}
+
+.qr-active-session {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow-card);
+    text-align: center;
+}
+
+.qr-image-container {
+    margin: var(--space-md) auto;
+    max-width: 250px;
+}
+
+.qr-image-container img {
+    width: 100%;
+    border-radius: var(--radius-md);
+}
+
+.qr-session-info {
+    margin-top: var(--space-md);
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+}
+
+.qr-timer {
+    font-size: var(--font-size-xl);
+    font-weight: 800;
+    color: var(--card-passion);
+    margin: var(--space-sm) 0;
+}
+
+/* 출석자 목록 */
+.attendee-list {
+    margin-top: var(--space-lg);
+    text-align: left;
+}
+
+.attendee-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: 12px;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
+}
+
+.attendee-item.other-class {
+    background: #FFF3E0;
+    border: 1px dashed var(--card-mission);
+}
+
+.attendee-name {
+    flex: 1;
+    font-weight: 600;
+}
+
+.attendee-tag {
+    font-size: var(--font-size-xs);
+}
+
+.attendee-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.attendee-btn {
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    transition: all var(--transition-fast);
+}
+
+.attendee-btn-approve {
+    background: var(--card-steady);
+    color: var(--white);
+}
+
+.attendee-btn-hold {
+    background: var(--coin-badge);
+    color: var(--white);
+}
+
+.attendee-btn-remove {
+    background: var(--gray-200);
+    color: var(--gray-600);
+}
+
+/* ============================================
+ * 학생 프로필 (코치 뷰)
+ * ============================================ */
+.student-profile-card {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow-card);
+    margin-bottom: var(--space-md);
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.profile-name {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+}
+
+.profile-details {
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+}
+
+.profile-rewards {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    text-align: center;
+}
+
+.profile-reward-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+}
+
+.profile-reward-count {
+    font-size: var(--font-size-lg);
+    font-weight: 800;
+}
+
+.profile-reward-name {
+    font-size: 10px;
+    color: var(--gray-500);
+}
+
+/* ACE 도전 상황 버튼 */
+.ace-profile-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: var(--radius-lg, 14px);
+    border: 1.5px solid #D1C4E9;
+    background: linear-gradient(135deg, #EDE7F6, #E8EAF6);
+    color: #4527A0;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+}
+.ace-profile-btn:hover {
+    border-color: #673AB7;
+    box-shadow: 0 2px 8px rgba(103,58,183,.15);
+}
+.ace-profile-btn:active {
+    transform: scale(0.98);
+}
+
+/* 카드 수정 폼 */
+.reward-edit-form {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow-card);
+}
+
+.reward-edit-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.reward-edit-row:last-child {
+    border-bottom: none;
+}
+
+.reward-edit-label {
+    flex: 1;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+
+.reward-edit-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reward-edit-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    transition: all var(--transition-fast);
+}
+
+.reward-edit-btn-minus {
+    background: #FFEBEE;
+    color: var(--card-passion);
+}
+
+.reward-edit-btn-plus {
+    background: #E8F5E9;
+    color: var(--card-steady);
+}
+
+.reward-edit-value {
+    width: 40px;
+    text-align: center;
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+}
+
+.reward-edit-reason {
+    width: 100%;
+    margin-top: var(--space-md);
+}
+
+/* 코치 로그인 */
+.coach-login-container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-lg);
+}
+
+.coach-login-logo {
+    text-align: center;
+    margin-bottom: var(--space-xl);
+}
+
+.coach-login-title {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: var(--space-lg);
+}
+
+/* ============================================
+ * 반응형 (PC - 체크리스트)
+ * ============================================ */
+/* ============================================
+ * 소리과제 현황
+ * ============================================ */
+.hw-period-wrap, .hw-view-wrap {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.hw-period-btn, .hw-view-btn {
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--white);
+    color: var(--gray-500);
+    border: 1.5px solid var(--gray-200);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.hw-period-btn.active {
+    background: #FF7E17;
+    color: #fff;
+    border-color: #FF7E17;
+}
+
+.hw-view-btn.active {
+    background: #2196F3;
+    color: #fff;
+    border-color: #2196F3;
+}
+
+.hw-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.hw-nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid #FF7E17;
+    background: var(--white);
+    color: #FF7E17;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.hw-nav-btn:active:not(:disabled) {
+    background: #FF7E17;
+    color: #fff;
+}
+
+.hw-nav-btn:disabled {
+    border-color: var(--gray-200);
+    color: var(--gray-300);
+    cursor: default;
+}
+
+.hw-nav-label {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+    color: #FF7E17;
+    font-size: 15px;
+}
+
+.hw-nav-label .hw-req {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-400);
+}
+
+.hw-current-badge {
+    display: inline-block;
+    background: #FFF3E0;
+    color: #FF7E17;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+    animation: hwPulse 2s ease-in-out infinite;
+}
+
+@keyframes hwPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.hw-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.hw-summary-card {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: transform 0.15s;
+    border-left: 4px solid #FF7E17;
+}
+
+.hw-summary-card:active {
+    transform: scale(0.97);
+}
+
+.hw-summary-card .hw-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-600);
+}
+
+.hw-summary-card .hw-card-rate {
+    font-size: 22px;
+    font-weight: 800;
+    margin-top: 2px;
+}
+
+.hw-summary-card .hw-card-sub {
+    font-size: 10px;
+    color: var(--gray-400);
+    margin-top: 2px;
+}
+
+.hw-chart-wrap {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 14px 10px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.hw-chart-inner {
+    min-width: 500px;
+    position: relative;
+    height: 280px;
+}
+
+.hw-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.hw-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--white);
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-600);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: opacity 0.2s;
+    border: none;
+}
+
+.hw-legend-item.dimmed {
+    opacity: 0.3;
+}
+
+.hw-legend-item .hw-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.hw-legend-ctrl {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.hw-legend-ctrl-btn {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--gray-100);
+    color: var(--gray-500);
+    border: none;
+    cursor: pointer;
+}
+
+.hw-alert-section {
+    margin-top: 20px;
+}
+
+.hw-alert-header {
+    padding: 14px 16px;
+    font-weight: 800;
+    font-size: 15px;
+    color: #E65100;
+    background: #FFF3E0;
+    border-radius: 14px 14px 0 0;
+}
+
+.hw-alert-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.hw-alert-card:last-child {
+    border-bottom: none;
+    border-radius: 0 0 14px 14px;
+}
+
+.hw-alert-card.level-red { background: #FFEBEE; }
+.hw-alert-card.level-orange { background: #FFF3E0; }
+.hw-alert-card.level-yellow { background: #FFFDE7; }
+
+.hw-alert-name {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.hw-alert-class {
+    font-size: 11px;
+    color: var(--gray-400);
+}
+
+.hw-alert-days {
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.hw-alert-last {
+    font-size: 10px;
+    color: var(--gray-400);
+    text-align: right;
+}
+
+.hw-no-alert {
+    padding: 20px;
+    text-align: center;
+    color: var(--card-steady);
+    font-weight: 600;
+    font-size: 14px;
+    background: #E8F5E9;
+    border-radius: 14px;
+}
+
+.hw-info {
+    background: #FFF8F0;
+    border: 1px solid #FFE0B2;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--gray-600);
+    line-height: 1.5;
+}
+
+.hw-info strong {
+    color: #FF7E17;
+}
+
+@media (min-width: 768px) {
+    .coach-page .app-container {
+        max-width: 960px;
+    }
+
+    .checklist-header,
+    .checklist-row,
+    .checklist-bulk {
+        grid-template-columns: 1fr repeat(6, 72px);
+    }
+
+    .checklist-header {
+        font-size: var(--font-size-sm);
+    }
+}
+
+/* ============================================
+   ACE 평가 탭 스타일
+   ============================================ */
+
+/* 요약 카드 */
+.ace-summary {
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.1);
+}
+.ace-summary-header {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #EDE7F6, #D1C4E9);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.ace-summary-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #4527A0;
+}
+.ace-summary-sub {
+    font-size: 12px;
+    color: #7E57C2;
+    font-weight: 600;
+}
+.ace-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid #EDE7F6;
+}
+.ace-summary-cell {
+    text-align: center;
+    padding: 14px 4px 12px;
+    border-right: 1px solid #F5F5F5;
+}
+.ace-summary-cell:last-child {
+    border-right: none;
+}
+.ace-summary-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+.ace-summary-value {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+}
+.ace-summary-total {
+    font-size: 12px;
+    font-weight: 600;
+    color: #BDBDBD;
+}
+.ace-summary-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #999;
+    margin-top: 4px;
+}
+.ace-summary-retry {
+    font-size: 10px;
+    font-weight: 600;
+    color: #FF9800;
+    margin-top: 3px;
+}
+
+/* 필터 칩 */
+.ace-filter-chips {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.ace-filter-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--gray-200, #E0E0E0);
+    background: var(--white, #fff);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-500, #666);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+}
+.ace-filter-chip.active {
+    background: #673AB7;
+    color: #fff;
+    border-color: #673AB7;
+}
+.ace-filter-chip:not(.active):hover {
+    border-color: #673AB7;
+    color: #673AB7;
+}
+
+/* 대기 섹션 */
+.ace-pending-section {
+    margin-top: 4px;
+}
+
+.ace-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 10px;
+    padding: 0 2px;
+}
+
+.ace-pending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ace-pending-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1.5px solid #E3F2FD;
+    cursor: pointer;
+    transition: all .15s;
+}
+.ace-pending-item:hover {
+    border-color: #2196F3;
+    box-shadow: 0 2px 8px rgba(33,150,243,.1);
+}
+.ace-pending-item.ace-pending-before {
+    border-color: #C8E6C9;
+    cursor: pointer;
+}
+.ace-pending-item.ace-pending-before:hover {
+    border-color: #4CAF50;
+    box-shadow: 0 2px 8px rgba(76,175,80,.1);
+}
+
+.ace-pending-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.ace-pending-info { flex: 1; min-width: 0; }
+.ace-pending-name { font-size: 14px; font-weight: 700; color: #333; }
+.ace-pending-meta { font-size: 11px; color: #999; margin-top: 2px; }
+
+/* 평가 상세 화면 */
+.ace-eval-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.ace-back-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    color: #666;
+    border-radius: 8px;
+}
+.ace-back-btn:hover { background: #F5F5F5; }
+
+.ace-eval-student {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ace-eval-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    font-size: 16px;
+}
+
+.ace-eval-level {
+    background: #fff;
+    border-radius: 14px;
+    border: 1.5px solid #E0E0E0;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.ace-eval-level-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.ace-eval-level-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+}
+
+.ace-result-badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 8px;
+}
+.ace-result-badge.pass { background: #E8F5E9; color: #2E7D32; }
+.ace-result-badge.retry { background: #FFF3E0; color: #E65100; }
+
+/* 녹음 항목 */
+.ace-eval-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.ace-eval-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #FAFAFA;
+    border-radius: 8px;
+}
+.ace-eval-item-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+    min-width: 0;
+}
+.ace-eval-ipa {
+    font-size: 11px;
+    color: #999;
+    font-weight: 400;
+    display: block;
+}
+.ace-eval-players {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.ace-play-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+}
+.ace-play-btn.before { background: #E3F2FD; color: #1565C0; }
+.ace-play-btn.after { background: #FFF3E0; color: #E65100; }
+.ace-play-btn.playing { animation: ace-playing-pulse .8s infinite; }
+@keyframes ace-playing-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.ace-play-empty {
+    font-size: 11px;
+    color: #ccc;
+    padding: 5px 8px;
+}
+
+/* 평가 폼 */
+.ace-eval-form {
+    border-top: 1px solid #eee;
+    padding-top: 14px;
+}
+.ace-eval-form-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #666;
+    margin-bottom: 10px;
+}
+.ace-eval-result-btns {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.ace-result-btn {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #E0E0E0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+}
+.ace-result-btn.pass:hover, .ace-result-btn.pass.selected {
+    border-color: #4CAF50;
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+.ace-result-btn.retry:hover, .ace-result-btn.retry.selected {
+    border-color: #FF9800;
+    background: #FFF3E0;
+    color: #E65100;
+}
+
+.ace-comment-section.hidden { display: none; }
+
+.ace-comment-type-btns {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.ace-comment-type-btn {
+    flex: 1;
+    padding: 8px 6px;
+    border: 1.5px solid #E0E0E0;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+}
+.ace-comment-type-btn.selected {
+    border-color: #2196F3;
+    background: #E3F2FD;
+    color: #1565C0;
+}
+
+.ace-template-select {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+.ace-template-select.hidden { display: none; }
+.ace-template-item {
+    padding: 8px 10px;
+    background: #F5F5F5;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #555;
+    cursor: pointer;
+    line-height: 1.5;
+    transition: background .15s;
+}
+.ace-template-item:hover { background: #E3F2FD; }
+
+.ace-comment-text {
+    width: 100%;
+    padding: 10px;
+    border: 1.5px solid #E0E0E0;
+    border-radius: 10px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.ace-submit-eval {
+    margin-top: 4px;
+}
+
+/* 평가 결과 */
+.ace-eval-result-info {
+    border-top: 1px solid #eee;
+    padding-top: 12px;
+    margin-top: 12px;
+}
+.ace-eval-comment {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #FAFAFA;
+    border-radius: 8px;
+}
+.ace-comment-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 6px;
+}
+.ace-report-sent {
+    font-size: 12px;
+    color: #4CAF50;
+    font-weight: 600;
+}
+.ace-send-btn {
+    margin-top: 4px;
+}
+
+/* ── Bravo Coach ── */
+.bravo-coach-section {
+    margin: 12px 0;
+}
+.bravo-coach-section-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #F0F0F0;
+}
+.bravo-coach-quiz-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.bravo-coach-quiz-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+.bravo-coach-quiz-item.correct {
+    background: #F1F8E9;
+}
+.bravo-coach-quiz-item.wrong {
+    background: #FFF3E0;
+}
+.bravo-quiz-icon {
+    flex-shrink: 0;
+    font-size: 14px;
+}
+.bravo-quiz-word {
+    font-weight: 700;
+    color: #333;
+    min-width: 60px;
+}
+.bravo-quiz-ipa {
+    color: #999;
+    font-size: 12px;
+}
+.bravo-quiz-answer {
+    margin-left: auto;
+    color: #555;
+}
+.bravo-quiz-correct-answer {
+    color: #2E7D32;
+    font-weight: 600;
+    font-size: 12px;
+}
+.bravo-quiz-correct-answer::before {
+    content: '→ ';
+}

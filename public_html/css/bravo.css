@@ -1,0 +1,797 @@
+/* ============================================
+   Bravo 테스트 페이지 스타일
+   ============================================ */
+
+.bravo-page {
+    font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #F8FAFC;
+    min-height: 100vh;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* 헤더 */
+.bravo-header {
+    background: #1E293B;
+    padding: 40px 20px 14px;
+    color: #fff;
+}
+.bravo-header-sub {
+    font-size: 10px;
+    letter-spacing: 2px;
+    opacity: 0.5;
+    margin-bottom: 6px;
+}
+.bravo-header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.bravo-header-title h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+}
+.bravo-header-emoji {
+    font-size: 22px;
+}
+
+/* 밴드 탭 */
+.bravo-band-tabs {
+    display: flex;
+    gap: 8px;
+}
+.bravo-band-tab {
+    flex: 1;
+    padding: 10px 8px;
+    border-radius: 14px;
+    border: 2px solid transparent;
+    background: rgba(255,255,255,0.06);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+.bravo-band-tab.active {
+    background: rgba(255,255,255,0.15);
+}
+.bravo-band-tab-emoji {
+    font-size: 18px;
+}
+.bravo-band-tab-name {
+    font-size: 12px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.4);
+}
+.bravo-band-tab.active .bravo-band-tab-name {
+    color: var(--band-color);
+}
+
+/* 레벨 선택 바 */
+.bravo-level-bar {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #fff;
+    border-bottom: 1px solid #E2E8F0;
+}
+.bravo-level-btn {
+    flex: 1;
+    padding: 7px 4px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+.bravo-level-btn.active {
+    border-color: var(--level-color);
+    background: var(--level-light);
+}
+.bravo-level-btn-name {
+    font-size: 11px;
+    font-weight: 800;
+    color: #94A3B8;
+}
+.bravo-level-btn.active .bravo-level-btn-name {
+    color: var(--level-color);
+}
+.bravo-level-btn-sub {
+    font-size: 8px;
+    color: #94A3B8;
+}
+
+/* 테스트 헤더 */
+.bravo-test-header {
+    padding: 14px 18px;
+    color: #fff;
+}
+.bravo-test-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.bravo-test-header-sub {
+    font-size: 10px;
+    opacity: 0.7;
+}
+.bravo-test-header-title {
+    font-size: 18px;
+    font-weight: 800;
+    margin: 2px 0 0;
+}
+.bravo-test-header-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+/* 파트 탭 */
+.bravo-part-tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+}
+.bravo-part-tab {
+    flex: 1;
+    padding: 7px 4px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    background: rgba(255,255,255,0.08);
+    transition: all 0.2s;
+}
+.bravo-part-tab.active {
+    background: rgba(255,255,255,0.3);
+}
+.bravo-part-tab-icon {
+    font-size: 15px;
+}
+.bravo-part-tab-name {
+    font-size: 9px;
+    color: #fff;
+    font-weight: 400;
+    opacity: 0.6;
+}
+.bravo-part-tab.active .bravo-part-tab-name {
+    font-weight: 700;
+    opacity: 1;
+}
+.bravo-part-tab-check {
+    font-size: 8px;
+    color: #90EE90;
+}
+
+/* 테스트 컨텐츠 */
+.bravo-test-content {
+    padding: 14px 16px;
+}
+
+/* 진행률 */
+.bravo-progress-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.bravo-progress-label {
+    font-size: 12px;
+    font-weight: 700;
+}
+.bravo-progress-count {
+    font-size: 12px;
+    color: #64748B;
+    font-weight: 600;
+}
+.bravo-progress-track {
+    height: 4px;
+    border-radius: 2px;
+    background: #F1F5F9;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+.bravo-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+
+/* 카드 공통 */
+.bravo-card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 28px 22px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    margin-bottom: 14px;
+    position: relative;
+}
+.bravo-card.done {
+    border-width: 2.5px;
+    border-color: #059669;
+}
+.bravo-card-check {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #059669;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* 퀴즈 카드 */
+.bravo-quiz-word {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.bravo-quiz-word-text {
+    font-size: 42px;
+    font-weight: 800;
+    color: #1E293B;
+    font-family: 'Fredoka', sans-serif;
+}
+.bravo-quiz-word-ipa {
+    font-size: 12px;
+    color: #64748B;
+    font-family: monospace;
+    margin-top: 4px;
+}
+.bravo-quiz-choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.bravo-quiz-choice {
+    padding: 16px 10px;
+    border-radius: 16px;
+    border: 2.5px solid #E2E8F0;
+    background: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1E293B;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+.bravo-quiz-choice:active {
+    transform: scale(0.97);
+}
+.bravo-quiz-choice.picked {
+    transform: scale(0.97);
+}
+.bravo-quiz-choice.correct {
+    border-color: #059669;
+    background: #ECFDF5;
+    color: #059669;
+}
+.bravo-quiz-choice.wrong {
+    border-color: #EF4444;
+    background: #FEF2F2;
+    color: #EF4444;
+}
+.bravo-quiz-choice.dimmed {
+    opacity: 0.4;
+}
+.bravo-quiz-result {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 16px;
+    font-weight: 700;
+}
+.bravo-quiz-result.success { color: #059669; }
+.bravo-quiz-answer {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 13px;
+    color: #64748B;
+}
+
+/* 문장 카드 */
+.bravo-sentence-text {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1E293B;
+    line-height: 1.4;
+    font-family: 'Fredoka', sans-serif;
+    margin-bottom: 8px;
+    text-align: center;
+}
+.bravo-sentence-kr {
+    font-size: 13px;
+    color: #64748B;
+    text-align: center;
+    margin-bottom: 4px;
+}
+.bravo-sentence-pattern {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+/* 파닉스 카드 */
+.bravo-phonics-letters {
+    font-size: 36px;
+    font-weight: 800;
+    font-family: 'Fredoka', sans-serif;
+    letter-spacing: 8px;
+    margin-bottom: 12px;
+    padding: 12px 24px;
+    border-radius: 16px;
+    display: inline-block;
+    line-height: 1.3;
+    text-align: center;
+}
+.bravo-phonics-arrow {
+    font-size: 14px;
+    color: #64748B;
+    margin: 10px 0 6px;
+    font-weight: 600;
+    text-align: center;
+}
+.bravo-phonics-word {
+    font-size: 72px;
+    font-weight: 800;
+    color: #1E293B;
+    font-family: 'Fredoka', sans-serif;
+    letter-spacing: 6px;
+    line-height: 1;
+    text-align: center;
+}
+
+/* 블록 카드 */
+.bravo-block-hint {
+    text-align: center;
+    margin-bottom: 14px;
+    padding: 10px 16px;
+    background: #F1F5F9;
+    border-radius: 12px;
+}
+.bravo-block-hint-label {
+    font-size: 11px;
+    color: #64748B;
+    margin-bottom: 2px;
+}
+.bravo-block-hint-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1E293B;
+    line-height: 1.5;
+}
+.bravo-block-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 6px;
+    align-items: center;
+}
+.bravo-block-fixed {
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1E293B;
+    font-family: 'Fredoka', sans-serif;
+}
+.bravo-block-blank {
+    padding: 10px 16px;
+    border-radius: 12px;
+    min-width: 64px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 15px;
+    font-family: 'Fredoka', sans-serif;
+    transition: all 0.2s;
+}
+.bravo-block-blank.current {
+    transform: scale(1.05);
+}
+.bravo-block-blank.correct {
+    background: rgba(5,150,105,0.12);
+    color: #059669;
+    border: 2.5px solid #059669;
+}
+.bravo-block-blank.wrong {
+    background: rgba(239,68,68,0.1);
+    color: #EF4444;
+    border: 2.5px solid #EF4444;
+}
+.bravo-block-indicator {
+    text-align: center;
+    margin-bottom: 14px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.bravo-block-choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.bravo-block-choice {
+    padding: 14px 10px;
+    border-radius: 14px;
+    border: 2.5px solid #E2E8F0;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1E293B;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+.bravo-block-choice.correct {
+    border-color: #059669;
+    background: #ECFDF5;
+    color: #059669;
+}
+.bravo-block-choice.wrong {
+    border-color: #EF4444;
+    background: #FEF2F2;
+    color: #EF4444;
+}
+.bravo-block-success {
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: #ECFDF5;
+    border-radius: 14px;
+    text-align: center;
+}
+.bravo-block-success-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: #059669;
+    font-family: 'Fredoka', sans-serif;
+    line-height: 1.4;
+}
+
+/* 녹음 버튼 */
+.bravo-rec-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+.bravo-rec-btn {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 4px solid;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s;
+}
+.bravo-rec-btn:active {
+    transform: scale(0.92);
+}
+.bravo-rec-play-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 3px solid;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    transition: transform 0.1s;
+}
+.bravo-rec-play-btn:active {
+    transform: scale(0.92);
+}
+.bravo-rec-btn.recording {
+    border-color: #EF4444;
+    background: #FEE2E2;
+}
+.bravo-rec-btn-stop {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: #EF4444;
+}
+.bravo-rec-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #EF4444;
+    animation: pulse 1s infinite;
+}
+.bravo-rec-hint {
+    font-size: 11px;
+    color: #64748B;
+}
+
+/* 네비 */
+.bravo-nav {
+    display: flex;
+    gap: 8px;
+}
+.bravo-nav-prev, .bravo-nav-next {
+    flex: 1;
+    padding: 12px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+.bravo-nav-prev {
+    border: 1px solid #E2E8F0;
+    background: #fff;
+    color: #64748B;
+}
+.bravo-nav-next {
+    border: none;
+    color: #fff;
+    font-weight: 700;
+}
+.bravo-nav-prev:disabled, .bravo-nav-next:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* 하단 제출 */
+.bravo-submit-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 520px;
+    padding: 10px 16px;
+    background: #fff;
+    border-top: 1px solid #E2E8F0;
+    z-index: 10;
+}
+.bravo-submit-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 16px;
+    border: none;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+.bravo-submit-btn:disabled {
+    background: #F1F5F9;
+    color: #94A3B8;
+    cursor: default;
+}
+
+/* 결과 화면 */
+.bravo-result {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 50px 16px;
+    text-align: center;
+}
+.bravo-result-emoji {
+    font-size: 72px;
+    margin-bottom: 16px;
+}
+.bravo-result-title {
+    font-size: 32px;
+    font-weight: 800;
+    color: #1E293B;
+    font-family: 'Fredoka', sans-serif;
+}
+.bravo-result-coins {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 20px 0;
+}
+.bravo-result-coin {
+    font-size: 40px;
+}
+.bravo-result-coin-text {
+    font-size: 20px;
+    font-weight: 700;
+    color: #FF6B35;
+    margin-bottom: 8px;
+}
+.bravo-result-score {
+    background: #F8FAFC;
+    border-radius: 16px;
+    padding: 16px;
+    margin: 16px 0 24px;
+    border: 1px solid #E2E8F0;
+    text-align: left;
+}
+.bravo-result-score-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1E293B;
+    margin-bottom: 8px;
+}
+.bravo-result-score-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.bravo-result-score-label {
+    font-size: 12px;
+    color: #1E293B;
+    font-weight: 600;
+    width: 80px;
+}
+.bravo-result-score-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: #F1F5F9;
+    overflow: hidden;
+}
+.bravo-result-score-fill {
+    height: 100%;
+    border-radius: 4px;
+}
+.bravo-result-score-num {
+    font-size: 12px;
+    font-weight: 700;
+    width: 50px;
+    text-align: right;
+}
+.bravo-result-msg {
+    font-size: 14px;
+    color: #64748B;
+    line-height: 1.6;
+}
+.bravo-result-home {
+    margin-top: 30px;
+    padding: 14px 40px;
+    border-radius: 14px;
+    border: none;
+    background: #1E293B;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* 대시보드(레벨 선택) */
+.bravo-dashboard {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0;
+}
+.bravo-level-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+}
+.bravo-level-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    border-radius: 14px;
+    border: 2px solid #E2E8F0;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.bravo-level-card.current {
+    border-color: var(--level-color);
+    background: var(--level-light);
+}
+.bravo-level-card.passed {
+    border-color: #059669;
+    background: #ECFDF5;
+}
+.bravo-level-card.locked {
+    opacity: 0.5;
+    cursor: default;
+}
+.bravo-level-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+}
+.bravo-level-card-info {
+    flex: 1;
+    min-width: 0;
+}
+.bravo-level-card-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: #1E293B;
+}
+.bravo-level-card-desc {
+    font-size: 11px;
+    color: #64748B;
+    margin-top: 2px;
+}
+.bravo-level-card-chip {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.bravo-level-card-chip.pass {
+    background: #ECFDF5;
+    color: #059669;
+}
+.bravo-level-card-chip.available {
+    background: #EDE7F6;
+    color: #7C5CFC;
+}
+.bravo-level-card-chip.waiting {
+    background: #FFF3E0;
+    color: #E65100;
+}
+.bravo-level-card-chip.locked {
+    background: #F5F5F5;
+    color: #9E9E9E;
+}
+
+/* 뒤로가기 */
+.bravo-back-btn {
+    position: absolute;
+    top: 44px;
+    right: 16px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    z-index: 5;
+}
+
+/* 애니메이션 */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+@keyframes confetti-fall {
+    0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
+}
+.bravo-confetti {
+    position: fixed;
+    top: 0;
+    font-size: 20px;
+    animation: confetti-fall 3s ease-out forwards;
+    pointer-events: none;
+    z-index: 100;
+}

@@ -1,0 +1,240 @@
+/* ============================================
+   ACE 부모 성장 리포트 스타일
+   ============================================ */
+
+.ace-report-page {
+    font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(180deg, #EDE7F6 0%, #F5F5F5 30%);
+    min-height: 100vh;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.report-container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+/* 헤더 */
+.report-header {
+    padding: 24px 20px 16px;
+}
+.report-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.report-brand-logo {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #673AB7, #9C27B0);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 900;
+    font-size: 18px;
+}
+.report-brand-name {
+    font-size: 16px;
+    font-weight: 800;
+    color: #333;
+}
+.report-brand-sub {
+    font-size: 12px;
+    color: #9E9E9E;
+}
+
+/* 학생 카드 */
+.report-student-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 16px 20px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.report-student-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+.report-student-info { flex: 1; }
+.report-student-name { font-size: 18px; font-weight: 800; color: #333; }
+.report-student-class { font-size: 13px; color: #999; margin-top: 2px; }
+.report-student-coach { text-align: right; }
+
+/* 섹션 */
+.report-section {
+    margin: 0 16px 20px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.report-section-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #333;
+    margin-bottom: 14px;
+}
+.report-section-hint {
+    font-size: 12px;
+    color: #999;
+    margin-top: -8px;
+    margin-bottom: 14px;
+}
+
+/* ACE 뱃지 */
+.report-ace-badges {
+    display: flex;
+    gap: 8px;
+}
+.report-ace-badge {
+    flex: 1;
+    text-align: center;
+    padding: 14px 8px;
+    border-radius: 12px;
+    border: 2px solid #E0E0E0;
+    background: #FAFAFA;
+}
+.report-ace-badge.passed {
+    border-color: #4CAF50;
+    background: #E8F5E9;
+}
+.report-ace-badge.current {
+    border-color: #673AB7;
+    background: #EDE7F6;
+}
+.report-ace-badge-icon { font-size: 24px; margin-bottom: 4px; }
+.report-ace-badge-name { font-size: 13px; font-weight: 700; color: #333; }
+.report-ace-badge-desc { font-size: 10px; color: #999; margin-top: 2px; }
+.report-ace-badge-status {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+.report-ace-badge.passed .report-ace-badge-status { background: #4CAF50; color: #fff; }
+.report-ace-badge.current .report-ace-badge-status { background: #673AB7; color: #fff; }
+.report-ace-badge.locked .report-ace-badge-status { color: #ccc; }
+
+/* 소리 비교 */
+.report-sound-compare {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.report-sound-item {
+    padding: 12px;
+    background: #FAFAFA;
+    border-radius: 10px;
+}
+.report-sound-text {
+    font-size: 18px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 8px;
+}
+.report-sound-text.sentence {
+    font-size: 14px;
+    line-height: 1.5;
+}
+.report-sound-players {
+    display: flex;
+    gap: 8px;
+}
+.report-play-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+}
+.report-play-btn.before {
+    background: #E3F2FD;
+    color: #1565C0;
+}
+.report-play-btn.after {
+    background: linear-gradient(135deg, #EDE7F6, #E8EAF6);
+    color: #4527A0;
+}
+.report-play-btn:active { transform: scale(0.97); }
+.report-play-btn.playing {
+    animation: report-pulse .8s infinite;
+}
+@keyframes report-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* 코치 코멘트 */
+.report-comment-card {
+    padding: 16px;
+    background: linear-gradient(135deg, #F3E5F5, #EDE7F6);
+    border-radius: 12px;
+}
+.report-comment-type {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.report-comment-text {
+    font-size: 14px;
+    color: #333;
+    line-height: 1.7;
+    margin-bottom: 10px;
+}
+.report-comment-coach {
+    font-size: 12px;
+    color: #999;
+    text-align: right;
+}
+
+/* 인증서 버튼 */
+.report-cert-btn {
+    display: inline-block;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #673AB7, #9C27B0);
+    color: #fff;
+    border-radius: 12px;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 4px 16px rgba(103,58,183,.2);
+    transition: transform .15s;
+}
+.report-cert-btn:active { transform: scale(0.97); }
+
+/* 푸터 */
+.report-footer {
+    text-align: center;
+    padding: 24px 16px 40px;
+}
+.report-footer-logo {
+    font-size: 13px;
+    font-weight: 700;
+    color: #BDBDBD;
+}
+.report-footer-text {
+    font-size: 11px;
+    color: #E0E0E0;
+    margin-top: 4px;
+}

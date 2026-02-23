@@ -1,0 +1,359 @@
+/* ============================================
+ * 관리쌤 페이지 CSS (coach.css 기반, 오렌지 테마)
+ * ============================================ */
+
+.teacher-page {
+    background: var(--gray-100);
+}
+
+.teacher-page .app-header {
+    background: #FF9800;
+}
+
+.teacher-page .app-container {
+    background: var(--gray-100);
+}
+
+/* 관리쌤 대시보드 */
+.teacher-dashboard {
+    padding: var(--space-md);
+}
+
+.teacher-welcome {
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    color: var(--white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+}
+
+.teacher-welcome-name {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+}
+
+.teacher-welcome-class {
+    font-size: var(--font-size-sm);
+    opacity: 0.8;
+    margin-top: 4px;
+}
+
+/* 탭 스타일 오버라이드 */
+.teacher-page .tabs {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 4px;
+}
+
+.teacher-page .tab-btn.active {
+    background: #FF9800;
+    color: var(--white);
+}
+
+/* ============================================
+ * 체크리스트
+ * ============================================ */
+.checklist-date-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.checklist-date-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    font-size: 18px;
+    color: var(--gray-600);
+    transition: all var(--transition-fast);
+}
+
+.checklist-date-btn:active {
+    background: var(--gray-100);
+}
+
+.checklist-current-date {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    min-width: 140px;
+    text-align: center;
+}
+
+.checklist-table {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+.checklist-header {
+    display: grid;
+    grid-template-columns: 1fr repeat(6, 44px);
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--gray-600);
+    text-align: center;
+}
+
+.checklist-header .col-name {
+    text-align: left;
+    font-size: var(--font-size-sm);
+}
+
+.checklist-row {
+    display: grid;
+    grid-template-columns: 1fr repeat(6, 44px);
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.checklist-row:last-child {
+    border-bottom: none;
+}
+
+.checklist-student-name {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+
+.checklist-check {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.checklist-num {
+    width: 36px;
+    height: 30px;
+    text-align: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: #fff;
+    -moz-appearance: textfield;
+}
+.checklist-num::-webkit-outer-spin-button,
+.checklist-num::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.checklist-num:focus {
+    outline: none;
+    border-color: #FF9800;
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.15);
+}
+
+.checklist-bulk-num {
+    width: 36px;
+    height: 28px;
+    border: 1.5px solid #FFB74D;
+    border-radius: 8px;
+    background: #FFF3E0;
+    color: #E65100;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.checklist-bulk-num:active {
+    background: #FFE0B2;
+}
+
+/* 일괄 체크 행 */
+.checklist-bulk {
+    display: grid;
+    grid-template-columns: 1fr repeat(6, 44px);
+    align-items: center;
+    padding: 10px 12px;
+    background: #FFF8E1;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.checklist-bulk-label {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--coin-number);
+}
+
+.checklist-actions {
+    display: flex;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    justify-content: flex-end;
+}
+
+/* 체크리스트 컬럼 헤더 */
+.cl-zoom { color: var(--card-passion); }
+.cl-posture { color: var(--card-posture); }
+.cl-sound { color: var(--card-steady); }
+.cl-band { color: var(--card-mission); }
+.cl-leader { color: var(--card-leader); }
+.cl-reboot { color: #00BCD4; }
+
+/* ============================================
+ * 학생 프로필 (관리쌤 뷰)
+ * ============================================ */
+.student-profile-card {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow-card);
+    margin-bottom: var(--space-md);
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.profile-name {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+}
+
+.profile-details {
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+}
+
+.profile-rewards {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    text-align: center;
+}
+
+.profile-reward-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+}
+
+.profile-reward-count {
+    font-size: var(--font-size-lg);
+    font-weight: 800;
+}
+
+.profile-reward-name {
+    font-size: 10px;
+    color: var(--gray-500);
+}
+
+/* 카드 수정 폼 */
+.reward-edit-form {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow-card);
+}
+
+.reward-edit-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.reward-edit-row:last-child {
+    border-bottom: none;
+}
+
+.reward-edit-label {
+    flex: 1;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+
+.reward-edit-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reward-edit-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    transition: all var(--transition-fast);
+}
+
+.reward-edit-btn-minus {
+    background: #FFEBEE;
+    color: var(--card-passion);
+}
+
+.reward-edit-btn-plus {
+    background: #E8F5E9;
+    color: var(--card-steady);
+}
+
+.reward-edit-value {
+    width: 40px;
+    text-align: center;
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+}
+
+.reward-edit-reason {
+    width: 100%;
+    margin-top: var(--space-md);
+}
+
+/* 관리쌤 로그인 */
+.teacher-login-container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-lg);
+}
+
+.teacher-login-logo {
+    text-align: center;
+    margin-bottom: var(--space-xl);
+}
+
+/* ============================================
+ * 반응형 (PC - 체크리스트)
+ * ============================================ */
+@media (min-width: 768px) {
+    .teacher-page .app-container {
+        max-width: 960px;
+    }
+
+    .checklist-header,
+    .checklist-row,
+    .checklist-bulk {
+        grid-template-columns: 1fr repeat(6, 72px);
+    }
+
+    .checklist-header {
+        font-size: var(--font-size-sm);
+    }
+}

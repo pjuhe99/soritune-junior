@@ -1,0 +1,30 @@
+# 민감 정보
+.db_credentials
+*.pem
+ssl/
+
+# 로그
+logs/
+*.log
+
+# 업로드 파일 (사용자 데이터)
+ace_uploads/
+
+# Composer 의존성
+vendor/
+
+# 임시 파일
+tmp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*

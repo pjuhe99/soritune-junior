@@ -1,0 +1,11 @@
+{
+    "name": "soritune/junior",
+    "description": "소리튠 주니어 영어학교",
+    "require": {
+        "php": ">=8.0",
+        "chillerlan/php-qrcode": "^5.0"
+    },
+    "config": {
+        "vendor-dir": "vendor"
+    }
+}
