@@ -269,6 +269,56 @@ function getSetting(string $key, mixed $default = null): mixed {
     return $val;
 }
 
+// ============================================
+// 이미지 업로드 유틸
+// ============================================
+define('MSG_UPLOAD_DIR', dirname(__DIR__) . '/msg_uploads');
+define('ANN_UPLOAD_DIR', dirname(__DIR__) . '/ann_uploads');
+define('ALLOWED_IMAGE_TYPES', ['image/jpeg', 'image/png', 'image/webp']);
+define('MAX_IMAGE_SIZE', 5 * 1024 * 1024); // 5MB
+
+/**
+ * 이미지 파일 업로드 처리
+ * @param array $file $_FILES['image'] 형식
+ * @param string $baseDir 저장 기본 디렉토리 (MSG_UPLOAD_DIR 또는 ANN_UPLOAD_DIR)
+ * @param string $subDir 하위 디렉토리 (예: thread_id)
+ * @return string|null 저장된 상대 경로 또는 null (파일 없는 경우)
+ */
+function uploadImage(array $file, string $baseDir, string $subDir = ''): ?string {
+    if ($file['error'] === UPLOAD_ERR_NO_FILE) return null;
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        error_log("uploadImage error: code={$file['error']}, name={$file['name']}, size={$file['size']}");
+        jsonError('파일 업로드에 실패했습니다');
+    }
+    if ($file['size'] > MAX_IMAGE_SIZE) jsonError('이미지는 5MB 이하여야 합니다');
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $finfo->file($file['tmp_name']);
+    if (!in_array($mimeType, ALLOWED_IMAGE_TYPES, true)) {
+        jsonError('JPG, PNG, WebP 이미지만 허용됩니다');
+    }
+
+    $ext = match($mimeType) {
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/webp' => 'webp',
+        default      => 'jpg',
+    };
+
+    $dir = $baseDir . ($subDir ? "/{$subDir}" : '');
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    $fileName = uniqid() . '_' . bin2hex(random_bytes(4)) . ".{$ext}";
+    $relPath = ($subDir ? "{$subDir}/" : '') . $fileName;
+    $fullPath = "{$dir}/{$fileName}";
+
+    if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+        jsonError('파일 저장에 실패했습니다');
+    }
+
+    return $relPath;
+}
+
 /**
  * 학생 총 코인 계산
  */

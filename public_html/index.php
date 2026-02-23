@@ -190,7 +190,7 @@
                         </div>
                         <div class="landing-card-back" style="background:#F9A825;">
                             <div class="landing-card-back-title">도전왕</div>
-                            <div class="landing-card-back-desc">ACE/BRAVO 도전에서 성공하면 받는 카드!</div>
+                            <div class="landing-card-back-desc">ACE/BRAVO에 도전하기만 해도 받는 카드!</div>
                             <div class="landing-card-back-coin">3코인</div>
                             <div class="landing-card-back-coin-limit">일주일 최대 1장</div>
                         </div>

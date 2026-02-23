@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#673AB7">
     <title>관리자 - 소리튠 주니어</title>
-    <link rel="stylesheet" href="/css/common.css?v=20260220c">
-    <link rel="stylesheet" href="/css/toast.css?v=20260220c">
-    <link rel="stylesheet" href="/css/admin.css?v=20260220c">
-    <link rel="stylesheet" href="/css/admin-dock.css?v=20260220c">
+    <link rel="stylesheet" href="/css/common.css?v=20260223c">
+    <link rel="stylesheet" href="/css/toast.css?v=20260223c">
+    <link rel="stylesheet" href="/css/admin.css?v=20260223c">
+    <link rel="stylesheet" href="/css/admin-dock.css?v=20260223c">
     <style>
     /* Admin login styles */
     .admin-login-container {
@@ -122,9 +122,15 @@
         <div id="view-dashboard" style="display:none;">
             <div class="app-header" style="background:#673AB7;">
                 <h1 id="admin-title">관리자</h1>
-                <button class="back-btn" id="btn-logout">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                </button>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <button class="back-btn" id="btn-unread-badge" style="position:relative;" title="메시지">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <span id="unread-count-badge" style="display:none; position:absolute; top:-4px; right:-4px; background:#F44336; color:#fff; border-radius:10px; padding:1px 5px; font-size:10px; font-weight:700; min-width:16px; text-align:center;"></span>
+                    </button>
+                    <button class="back-btn" id="btn-logout">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    </button>
+                </div>
             </div>
             <div class="app-body" style="padding:16px;">
                 <div id="dashboard-content">
@@ -134,9 +140,9 @@
         </div>
     </div>
 
-    <script src="/js/toast.js?v=20260220c"></script>
-    <script src="/js/common.js?v=20260220c"></script>
-    <script src="/js/fingerprint.js?v=20260220c"></script>
+    <script src="/js/toast.js?v=20260223c"></script>
+    <script src="/js/common.js?v=20260223c"></script>
+    <script src="/js/fingerprint.js?v=20260223c"></script>
     <script>
     /**
      * 부모/관리쌤 통합 SPA
@@ -215,6 +221,91 @@
             document.getElementById('btn-logout').addEventListener('click', () => {
                 App.confirm('로그아웃 하시겠습니까?', doLogout);
             });
+
+            // 알림 배지 클릭 — 메시지 스레드 목록 표시
+            document.getElementById('btn-unread-badge').addEventListener('click', loadMsgThreadList);
+        }
+
+        // 메시지 스레드 목록 (말풍선 아이콘 클릭 시)
+        async function loadMsgThreadList() {
+            const container = document.getElementById('dashboard-content');
+            container.innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="display:inline-block;"></div></div>';
+
+            const [threadsResult, availResult] = await Promise.all([
+                App.get('/api/admin.php?action=msg_threads'),
+                App.get('/api/admin.php?action=msg_available_coaches'),
+            ]);
+            if (!threadsResult.success) return;
+
+            const threads = threadsResult.threads || [];
+            const available = (availResult.success ? availResult.available : []) || [];
+
+            // 진행 중인 대화 목록
+            const threadsHtml = threads.map(t => {
+                const unread = parseInt(t.unread_count) || 0;
+                const preview = (t.last_message || '').substring(0, 30) + ((t.last_message || '').length > 30 ? '...' : '');
+                const timeStr = formatMsgTimeAdmin(t.last_message_at);
+                return `
+                    <div class="card" style="cursor:pointer; padding:14px;" onclick="AdminApp.openParentChat(${t.student_id})">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div class="child-avatar">${(t.student_name||'?').charAt(0)}</div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-weight:700; font-size:14px;">${escapeHtmlAdmin(t.student_name)}</div>
+                                <div style="font-size:11px; color:#999;">${escapeHtmlAdmin(t.class_name)} / ${escapeHtmlAdmin(t.coach_name || '')} 선생님</div>
+                                <div style="font-size:12px; color:#757575; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtmlAdmin(preview)}</div>
+                            </div>
+                            <div style="text-align:right; flex-shrink:0;">
+                                <div style="font-size:10px; color:#999;">${timeStr}</div>
+                                ${unread > 0 ? `<div style="background:#F44336; color:#fff; border-radius:12px; padding:2px 8px; font-size:11px; font-weight:700; margin-top:4px;">${unread}건</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 새 대화 시작 버튼 목록
+            const newChatHtml = available.map(a => `
+                <button class="card new-chat-btn" data-student-id="${a.student_id}" style="width:100%; padding:14px; cursor:pointer; border:1.5px dashed #CE93D8; background:#FAFAFA; text-align:left;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:42px; height:42px; border-radius:50%; background:#F3E5F5; color:#8E24AA; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">💬</div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:700; font-size:14px; color:#673AB7;">${escapeHtmlAdmin(a.coach_name)} 선생님과 대화 시작하기</div>
+                            <div style="font-size:11px; color:#999; margin-top:2px;">${escapeHtmlAdmin(a.student_name)} · ${escapeHtmlAdmin(a.class_name)}</div>
+                        </div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                </button>
+            `).join('');
+
+            container.innerHTML = `
+                <button class="btn btn-secondary btn-sm" id="btn-back-from-threads" style="margin-bottom:16px;">← 목록으로</button>
+                <div style="font-size:18px; font-weight:700; margin-bottom:4px;">💬 메시지</div>
+                <div style="font-size:12px; color:#BDBDBD; margin-bottom:12px;">주말에는 답변이 어려울 수 있습니다</div>
+                ${threads.length === 0 && available.length === 0
+                    ? '<div class="empty-state"><div class="empty-state-text">대화할 수 있는 선생님이 없습니다</div></div>'
+                    : `<div style="display:flex; flex-direction:column; gap:8px;">
+                        ${threads.length > 0 ? threadsHtml : '<div style="text-align:center; padding:20px; color:#999; font-size:14px;">진행 중인 대화가 없어요</div>'}
+                        ${newChatHtml}
+                    </div>`
+                }
+            `;
+
+            document.getElementById('btn-back-from-threads').addEventListener('click', loadStudents);
+            container.querySelectorAll('.new-chat-btn').forEach(btn => {
+                btn.addEventListener('click', () => openParentChat(parseInt(btn.dataset.studentId)));
+            });
+        }
+
+        function formatMsgTimeAdmin(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr.replace(' ', 'T'));
+            const now = new Date();
+            const diff = now - d;
+            if (diff < 60000) return '방금';
+            if (diff < 3600000) return Math.floor(diff/60000) + '분 전';
+            if (diff < 86400000) return d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+            if (diff < 172800000) return '어제';
+            return (d.getMonth()+1) + '/' + d.getDate();
         }
 
         // ============================================
@@ -244,6 +335,11 @@
             document.getElementById('admin-title').textContent =
                 name.endsWith(roleSuffix) ? name : `${name} ${roleSuffix}`;
             loadStudents();
+
+            // 부모: 알림 폴링 시작
+            if (adminInfo.admin_role === 'parent') {
+                startUnreadPolling();
+            }
         }
 
         // ============================================
@@ -604,6 +700,9 @@
             container.innerHTML = `
                 <button class="btn btn-secondary btn-sm" id="btn-back-list" style="margin-bottom:16px;">← 목록으로</button>
 
+                <!-- 공지 섹션 -->
+                <div id="ann-section-${studentId}" style="margin-bottom:16px;"></div>
+
                 <div class="card" style="border-radius:16px;">
                     <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
                         <div class="child-avatar" style="width:52px; height:52px; font-size:22px;">${student.name.charAt(0)}</div>
@@ -672,6 +771,281 @@
             `;
 
             document.getElementById('btn-back-list').addEventListener('click', loadStudents);
+
+            // 공지사항 로드
+            loadAnnouncementsForStudent(studentId);
+        }
+
+        // ============================================
+        // 메시지 (학부모 ↔ 코치 1:1 채팅)
+        // ============================================
+        let parentMsgPollingTimer = null;
+
+        async function openParentChat(studentId) {
+            const container = document.getElementById('dashboard-content');
+            container.innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="display:inline-block;"></div></div>';
+
+            // 스레드 찾기 또는 자동 생성 (첫 메시지 없이 UI만 표시)
+            const threadsResult = await App.get('/api/admin.php?action=msg_threads');
+            if (!threadsResult.success) return;
+
+            const threads = threadsResult.threads || [];
+            const existingThread = threads.find(t => parseInt(t.student_id) === studentId);
+
+            if (existingThread) {
+                renderParentChatView(parseInt(existingThread.thread_id), studentId);
+            } else {
+                // 스레드가 아직 없으면 빈 채팅뷰 표시
+                renderParentChatView(null, studentId);
+            }
+        }
+
+        async function renderParentChatView(threadId, studentId) {
+            const container = document.getElementById('dashboard-content');
+            let messages = [];
+            let threadInfo = {};
+
+            if (threadId) {
+                const result = await App.get(`/api/admin.php?action=msg_thread_detail&thread_id=${threadId}`);
+                if (result.success) {
+                    messages = result.messages || [];
+                    threadInfo = result.thread || {};
+                }
+            } else {
+                // 학생 정보만 가져오기
+                const stuResult = await App.get(`/api/admin.php?action=student_dashboard&student_id=${studentId}`);
+                if (stuResult.success) {
+                    threadInfo = { student_name: stuResult.student.name, class_name: stuResult.student.class_name, coach_name: stuResult.student.coach_name };
+                }
+            }
+
+            container.innerHTML = `
+                <div style="margin-bottom:12px;">
+                    <button class="btn btn-secondary btn-sm" id="btn-chat-back">← 목록으로</button>
+                    <span style="font-weight:700; margin-left:8px;">${threadInfo.student_name || ''}</span>
+                    <span style="font-size:12px; color:#999; margin-left:4px;">${threadInfo.class_name || ''} / ${threadInfo.coach_name || ''}</span>
+                </div>
+                <div id="parent-chat-area" style="max-height:60vh; overflow-y:auto; padding:8px; background:#F5F5F5; border-radius:12px; margin-bottom:12px;">
+                    ${messages.length === 0 ? '<div style="text-align:center; padding:40px; color:#999;">선생님에게 메시지를 보내 보세요!</div>' :
+                        messages.map(m => renderParentBubble(m)).join('')}
+                </div>
+                <div style="display:flex; gap:8px; align-items:flex-end;">
+                    <label style="cursor:pointer; flex-shrink:0; padding:10px; background:#EDE7F6; border-radius:10px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#673AB7" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        <input type="file" id="parent-img-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
+                    </label>
+                    <div style="flex:1; position:relative;">
+                        <textarea id="parent-msg-input" placeholder="메시지를 입력하세요" rows="1" style="width:100%; padding:10px 14px; border:1.5px solid #E0E0E0; border-radius:12px; font-size:14px; resize:none; font-family:inherit; box-sizing:border-box;"></textarea>
+                        <div id="parent-img-preview" style="display:none; margin-top:4px;"></div>
+                    </div>
+                    <button class="btn" id="parent-send-btn" style="background:#673AB7; color:#fff; padding:10px 16px; border-radius:12px; font-weight:700; flex-shrink:0;">전송</button>
+                </div>
+            `;
+
+            const chatArea = document.getElementById('parent-chat-area');
+            chatArea.scrollTop = chatArea.scrollHeight;
+
+            // 읽음 처리 후 배지 즉시 갱신
+            if (threadId) updateUnreadBadge();
+
+            document.getElementById('btn-chat-back').addEventListener('click', loadStudents);
+
+            // 이미지 미리보기
+            document.getElementById('parent-img-input').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                const preview = document.getElementById('parent-img-preview');
+                if (file) {
+                    const url = URL.createObjectURL(file);
+                    preview.style.display = 'block';
+                    preview.innerHTML = `<div style="display:inline-block; position:relative;"><img src="${url}" style="max-height:60px; border-radius:8px;"><button onclick="document.getElementById('parent-img-input').value=''; document.getElementById('parent-img-preview').style.display='none';" style="position:absolute; top:-6px; right:-6px; background:#F44336; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; line-height:20px;">&times;</button></div>`;
+                } else {
+                    preview.style.display = 'none';
+                }
+            });
+
+            // 전송
+            const sendFn = () => sendParentMsg(studentId);
+            document.getElementById('parent-send-btn').addEventListener('click', sendFn);
+            document.getElementById('parent-msg-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendFn(); }
+            });
+
+            // 폴링
+            if (threadId) startParentMsgPolling(threadId);
+        }
+
+        async function sendParentMsg(studentId) {
+            const textEl = document.getElementById('parent-msg-input');
+            const imageEl = document.getElementById('parent-img-input');
+            const body = textEl.value.trim();
+            const file = imageEl.files[0];
+
+            if (!body && !file) return;
+
+            const fd = new FormData();
+            fd.append('student_id', studentId);
+            fd.append('body', body);
+            if (file) fd.append('image', file);
+
+            const result = await App.post('/api/admin.php?action=msg_send', fd);
+            if (result.success && result.message) {
+                const chatArea = document.getElementById('parent-chat-area');
+                const empty = chatArea.querySelector('[style*="text-align:center"]');
+                if (empty && chatArea.children.length === 1) chatArea.innerHTML = '';
+                chatArea.insertAdjacentHTML('beforeend', renderParentBubble(result.message));
+                chatArea.scrollTop = chatArea.scrollHeight;
+                textEl.value = '';
+                imageEl.value = '';
+                document.getElementById('parent-img-preview').style.display = 'none';
+                document.getElementById('parent-img-preview').innerHTML = '';
+
+                // 스레드가 방금 생성된 경우 폴링 시작
+                if (result.thread_id) startParentMsgPolling(result.thread_id);
+            }
+        }
+
+        function renderParentBubble(msg) {
+            const isMine = msg.sender_type === 'parent';
+            const align = isMine ? 'flex-end' : 'flex-start';
+            const bgColor = isMine ? '#673AB7' : '#fff';
+            const textColor = isMine ? '#fff' : '#333';
+            const borderStyle = isMine ? '' : 'border:1px solid #E0E0E0;';
+            const time = msg.created_at ? msg.created_at.slice(11, 16) : '';
+            const imgHtml = msg.image_path ? `<img src="/api/admin.php?action=msg_image&path=${encodeURIComponent(msg.image_path)}" style="max-width:200px; border-radius:8px; margin-bottom:4px; cursor:pointer; display:block;" onclick="window.open(this.src)">` : '';
+            const bodyHtml = msg.body ? `<div style="word-break:break-word;">${escapeHtmlAdmin(msg.body)}</div>` : '';
+            return `
+                <div data-msg-id="${msg.id}" style="display:flex; flex-direction:column; align-items:${align}; margin-bottom:8px;">
+                    ${!isMine ? `<div style="font-size:11px; color:#999; margin-bottom:2px;">${escapeHtmlAdmin(msg.sender_name)}</div>` : ''}
+                    <div style="max-width:75%; padding:10px 14px; border-radius:14px; background:${bgColor}; color:${textColor}; font-size:14px; ${borderStyle}">
+                        ${imgHtml}${bodyHtml}
+                    </div>
+                    <div style="font-size:10px; color:#BDBDBD; margin-top:2px;">${time}</div>
+                </div>
+            `;
+        }
+
+        function startParentMsgPolling(threadId) {
+            stopParentMsgPolling();
+            parentMsgPollingTimer = setInterval(async () => {
+                if (document.hidden) return;
+                const chatArea = document.getElementById('parent-chat-area');
+                if (!chatArea) { stopParentMsgPolling(); return; }
+                const result = await App.get(`/api/admin.php?action=msg_thread_detail&thread_id=${threadId}&limit=5`, null);
+                if (result.success && result.messages) {
+                    const existingIds = new Set([...chatArea.querySelectorAll('[data-msg-id]')].map(el => el.dataset.msgId));
+                    const newMsgs = result.messages.filter(m => !existingIds.has(String(m.id)));
+                    if (newMsgs.length > 0) {
+                        newMsgs.forEach(m => {
+                            chatArea.insertAdjacentHTML('beforeend', renderParentBubble(m));
+                        });
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                        updateUnreadBadge();
+                    }
+                }
+            }, 15000);
+        }
+
+        function stopParentMsgPolling() {
+            if (parentMsgPollingTimer) { clearInterval(parentMsgPollingTimer); parentMsgPollingTimer = null; }
+        }
+
+        function escapeHtmlAdmin(str) {
+            if (!str) return '';
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // ============================================
+        // 공지사항 (학부모 측 — 읽기 전용)
+        // ============================================
+
+        async function loadAnnouncementsForStudent(studentId) {
+            const sectionEl = document.getElementById(`ann-section-${studentId}`);
+            if (!sectionEl) return;
+
+            const result = await App.get(`/api/admin.php?action=announcements&student_id=${studentId}`);
+            if (!result.success) return;
+
+            const anns = result.announcements || [];
+            if (anns.length === 0) return; // 공지 없으면 섹션 숨김
+
+            sectionEl.innerHTML = `
+                <div class="card" style="border-radius:16px; border-left:4px solid #FF9800;">
+                    <div style="font-size:16px; font-weight:700; margin-bottom:12px; color:#E65100;">📢 알림판</div>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        ${anns.map(a => {
+                            const isRead = parseInt(a.is_read);
+                            const pinBadge = parseInt(a.is_pinned) ? '<span style="background:#FF9800; color:#fff; padding:1px 6px; border-radius:6px; font-size:10px; font-weight:700; margin-left:6px;">고정</span>' : '';
+                            const unreadDot = !isRead ? '<span style="display:inline-block; width:8px; height:8px; background:#2196F3; border-radius:50%; margin-right:6px;"></span>' : '';
+                            return `
+                                <div class="ann-item" style="padding:10px; background:#FAFAFA; border-radius:10px; cursor:pointer;" data-ann-id="${a.id}">
+                                    <div style="display:flex; align-items:center;">
+                                        ${unreadDot}
+                                        <span style="font-weight:600; font-size:14px;">${escapeHtmlAdmin(a.title)}</span>
+                                        ${pinBadge}
+                                    </div>
+                                    <div class="ann-body-preview" style="font-size:12px; color:#999; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                        ${escapeHtmlAdmin(a.body).substring(0, 50)}${a.body.length > 50 ? '...' : ''}
+                                    </div>
+                                    <div class="ann-body-full" style="display:none; font-size:13px; color:#555; margin-top:8px; white-space:pre-wrap;">
+                                        ${escapeHtmlAdmin(a.body)}
+                                        ${a.image_path ? `<br><img src="/api/admin.php?action=ann_image&path=${encodeURIComponent(a.image_path)}" style="max-width:100%; border-radius:8px; margin-top:8px; cursor:pointer;" onclick="window.open(this.src)">` : ''}
+                                    </div>
+                                    <div style="font-size:10px; color:#BDBDBD; margin-top:4px;">${a.class_name || ''} · ${a.created_at ? a.created_at.slice(0, 16) : ''}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+
+            // 공지 클릭 시 펼치기/접기 + 읽음 처리
+            sectionEl.querySelectorAll('.ann-item').forEach(item => {
+                item.addEventListener('click', async () => {
+                    const preview = item.querySelector('.ann-body-preview');
+                    const full = item.querySelector('.ann-body-full');
+                    const annId = item.dataset.annId;
+
+                    if (full.style.display === 'none') {
+                        full.style.display = 'block';
+                        preview.style.display = 'none';
+                        // 읽음 처리
+                        await App.get(`/api/admin.php?action=announcement_detail&announcement_id=${annId}`);
+                        // 파란 점 제거
+                        const dot = item.querySelector('[style*="background:#2196F3"]');
+                        if (dot) dot.remove();
+                    } else {
+                        full.style.display = 'none';
+                        preview.style.display = 'block';
+                    }
+                });
+            });
+        }
+
+        // ============================================
+        // 알림 배지 폴링
+        // ============================================
+        let unreadPollingTimer = null;
+
+        function startUnreadPolling() {
+            updateUnreadBadge();
+            unreadPollingTimer = setInterval(() => {
+                if (!document.hidden) updateUnreadBadge();
+            }, 60000);
+        }
+
+        async function updateUnreadBadge() {
+            const result = await App.get('/api/admin.php?action=msg_unread_total', null);
+            if (!result.success) return;
+            const total = (result.unread_messages || 0) + (result.unread_announcements || 0);
+            const badge = document.getElementById('unread-count-badge');
+            if (badge) {
+                if (total > 0) {
+                    badge.textContent = total > 99 ? '99+' : total;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
         }
 
         // ============================================
@@ -681,7 +1055,7 @@
             init();
         });
 
-        return { loadStudents, loadStudentDashboard };
+        return { loadStudents, loadStudentDashboard, openParentChat };
     })();
     </script>
     <script>
@@ -725,6 +1099,6 @@
         }
     }
     </script>
-    <script src="/js/admin-dock.js?v=20260220c" data-adock-active="admin"></script>
+    <script src="/js/admin-dock.js?v=20260223c" data-adock-active="admin"></script>
 </body>
 </html>

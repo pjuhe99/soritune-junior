@@ -1622,6 +1622,122 @@ switch ($action) {
         jsonSuccess(['admin_id' => $newAdminId, 'name' => $name, 'ip_whitelisted' => $clientIP, 'ip_expires' => $ipExpires]);
         break;
 
+    // 대화 현황 대시보드
+    case 'dashboard_messages':
+        $admin = requireSystem();
+        $db = getDB();
+
+        // 현재 시각 기준 "주말 제외 24시간" 산출
+        // 현재가 월요일이면 금요일 같은 시각, 그 외에는 24시간 전
+        $now = new DateTime();
+        $dow = (int)$now->format('N'); // 1=월 ~ 7=일
+        if ($dow === 1) {
+            // 월요일 → 금요일 같은 시각 (72시간 전)
+            $deadline = (clone $now)->modify('-72 hours');
+        } elseif ($dow === 7) {
+            // 일요일 → 금요일 같은 시각 (48시간 전)
+            $deadline = (clone $now)->modify('-48 hours');
+        } elseif ($dow === 6) {
+            // 토요일 → 금요일 같은 시각 (24시간 전, 즉 어제=금요일)
+            $deadline = (clone $now)->modify('-24 hours');
+        } else {
+            // 화~금 → 24시간 전
+            $deadline = (clone $now)->modify('-24 hours');
+        }
+        $deadlineStr = $deadline->format('Y-m-d H:i:s');
+
+        // 코치별 통계: 대화 수, 부모 수, 총 메시지 수
+        $stmt = $db->prepare("
+            SELECT a.id as coach_id, a.name as coach_name,
+                   GROUP_CONCAT(DISTINCT c.display_name ORDER BY c.sort_order SEPARATOR ', ') as class_names,
+                   COUNT(DISTINCT t.id) as thread_count,
+                   COUNT(DISTINCT t.parent_phone) as parent_count,
+                   (SELECT COUNT(*) FROM junior_messages m2
+                    JOIN junior_message_threads t2 ON m2.thread_id = t2.id
+                    JOIN junior_admin_classes ac2 ON t2.class_id = ac2.class_id AND ac2.admin_id = a.id AND ac2.is_active = 1
+                    WHERE m2.is_deleted = 0) as total_messages,
+                   (SELECT COUNT(*) FROM junior_messages m3
+                    JOIN junior_message_threads t3 ON m3.thread_id = t3.id
+                    JOIN junior_admin_classes ac3 ON t3.class_id = ac3.class_id AND ac3.admin_id = a.id AND ac3.is_active = 1
+                    WHERE m3.is_deleted = 0 AND m3.sender_type = 'coach') as coach_messages
+            FROM junior_admins a
+            JOIN junior_admin_classes ac ON a.id = ac.admin_id AND ac.is_active = 1
+            LEFT JOIN junior_message_threads t ON t.class_id = ac.class_id AND t.is_active = 1
+            LEFT JOIN junior_classes c ON ac.class_id = c.id
+            WHERE a.role = 'coach' AND a.is_active = 1
+            GROUP BY a.id
+            ORDER BY a.name
+        ");
+        $stmt->execute();
+        $coaches = $stmt->fetchAll();
+
+        // 미답변 스레드 조회: 마지막 메시지가 부모이고, 코치가 그 이후 답변 안 한 스레드
+        // + 해당 부모 메시지가 deadline보다 이전인 것 (주말 제외 24시간 초과)
+        $stmt = $db->prepare("
+            SELECT t.id as thread_id, t.class_id, t.student_id,
+                   s.name as student_name, c.display_name as class_name, c.coach_name,
+                   latest_parent.body as last_parent_msg,
+                   latest_parent.created_at as last_parent_msg_at,
+                   ac.admin_id as coach_id
+            FROM junior_message_threads t
+            JOIN junior_students s ON t.student_id = s.id
+            JOIN junior_classes c ON t.class_id = c.id
+            JOIN junior_admin_classes ac ON t.class_id = ac.class_id AND ac.is_active = 1
+            JOIN junior_admins a ON ac.admin_id = a.id AND a.role = 'coach'
+            JOIN (
+                SELECT m1.thread_id, m1.body, m1.created_at
+                FROM junior_messages m1
+                WHERE m1.id = (
+                    SELECT MAX(m2.id) FROM junior_messages m2
+                    WHERE m2.thread_id = m1.thread_id AND m2.is_deleted = 0
+                )
+                AND m1.sender_type = 'parent'
+                AND m1.is_deleted = 0
+            ) latest_parent ON latest_parent.thread_id = t.id
+            WHERE t.is_active = 1
+              AND latest_parent.created_at < ?
+              AND NOT EXISTS (
+                  SELECT 1 FROM junior_messages coach_reply
+                  WHERE coach_reply.thread_id = t.id
+                    AND coach_reply.sender_type = 'coach'
+                    AND coach_reply.is_deleted = 0
+                    AND coach_reply.created_at > latest_parent.created_at
+              )
+            ORDER BY latest_parent.created_at ASC
+        ");
+        $stmt->execute([$deadlineStr]);
+        $unanswered = $stmt->fetchAll();
+
+        // 코치별 미답변 수 집계
+        $unansweredByCoach = [];
+        foreach ($unanswered as $u) {
+            $cid = $u['coach_id'];
+            if (!isset($unansweredByCoach[$cid])) $unansweredByCoach[$cid] = 0;
+            $unansweredByCoach[$cid]++;
+        }
+
+        // coaches에 미답변 수 추가
+        foreach ($coaches as &$coach) {
+            $coach['unanswered_count'] = $unansweredByCoach[$coach['coach_id']] ?? 0;
+        }
+
+        // 전체 통계
+        $totalThreads = array_sum(array_column($coaches, 'thread_count'));
+        $totalMessages = array_sum(array_column($coaches, 'total_messages'));
+        $totalUnanswered = count($unanswered);
+
+        jsonSuccess([
+            'coaches' => $coaches,
+            'unanswered' => $unanswered,
+            'summary' => [
+                'total_threads' => $totalThreads,
+                'total_messages' => $totalMessages,
+                'total_unanswered' => $totalUnanswered,
+                'deadline' => $deadlineStr,
+            ],
+        ]);
+        break;
+
     default:
         jsonError('알 수 없는 요청입니다', 404);
 }
