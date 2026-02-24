@@ -1036,7 +1036,7 @@
         async function updateUnreadBadge() {
             const result = await App.get('/api/admin.php?action=msg_unread_total', null);
             if (!result.success) return;
-            const total = (result.unread_messages || 0) + (result.unread_announcements || 0);
+            const total = result.unread_messages || 0;
             const badge = document.getElementById('unread-count-badge');
             if (badge) {
                 if (total > 0) {
