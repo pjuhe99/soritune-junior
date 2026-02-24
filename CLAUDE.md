@@ -8,8 +8,18 @@
 | 운영 (J) | `/var/www/html/_______site_SORITUNECOM_J/` | `main` |
 
 - 코드 작업은 항상 **JUNIOR(dev)** 에서만 진행한다.
-- 운영 반영은 사용자가 요청할 때만: dev → main 머지 + J 디렉토리에서 `git pull`.
-- J(운영)에 직접 커밋/푸시하지 않는다.
+- J(운영)에 직접 코드 수정/커밋/푸시하지 않는다.
+- 운영 반영은 사용자가 요청할 때만 진행한다.
+
+### 배포 명령어 가이드
+
+| 사용자 요청 | 동작 | 영향 범위 |
+|------------|------|-----------|
+| "커밋/푸시해줘" | JUNIOR(dev)에서 `commit` → `push origin dev` | GitHub dev 브랜치만. 운영 영향 없음 |
+| "main에 머지해줘" | JUNIOR에서 `checkout main` → `merge dev` → `push origin main` → `checkout dev` | GitHub main 브랜치. 운영서버(J) 미반영 |
+| "운영서버에 반영해줘" | 위 머지 + J 디렉토리에서 `git pull origin main` | 운영서버(j.soritune.com) 실반영 |
+
+일반적인 순서: **커밋/푸시 → 확인 → main 머지 → 운영 반영**
 
 ---
 
