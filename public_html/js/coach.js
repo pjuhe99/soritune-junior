@@ -697,9 +697,10 @@ const CoachApp = (() => {
                     <img src="${data.qr_image}" alt="QR Code">
                 </div>
                 <div class="qr-timer" id="qr-timer"></div>
-                <div class="qr-session-info">
-                    <a href="${data.scan_url}" target="_blank" style="color:#2196F3; font-size:13px;">링크 복사용 URL</a>
-                </div>
+                <button id="btn-copy-link" data-url="${data.scan_url}"
+                    style="display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:12px; margin-top:4px; background:#E3F2FD; color:#1565C0; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit;">
+                    📋 링크 복사하기
+                </button>
                 <button class="btn btn-danger" id="btn-close-qr" style="margin-top:16px;">세션 종료</button>
             </div>
 
@@ -726,6 +727,14 @@ const CoachApp = (() => {
         }
         updateTimer();
         const timerInterval = setInterval(updateTimer, 1000);
+
+        // 링크 복사
+        document.getElementById('btn-copy-link').addEventListener('click', (e) => {
+            const url = e.currentTarget.dataset.url;
+            navigator.clipboard.writeText(url).then(() => {
+                Toast.success('링크가 복사되었습니다');
+            });
+        });
 
         // 출석 현황 로드 + 자동 갱신
         loadQRFullStatus();
