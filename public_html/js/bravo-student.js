@@ -14,7 +14,8 @@ const BravoApp = (() => {
     let recordings = {};  // {itemId: blobUrl}
     let autoTimer = null;
     let recStartTime = 0;
-    let embeddedMode = false; // ACE 페이지에서 로드됨
+    let embeddedMode = false;
+    let advanceTimer = null; // 자동 단계 전환 타이머
 
     const container = () => document.getElementById('view-main');
 
@@ -43,7 +44,6 @@ const BravoApp = (() => {
             return;
         }
 
-        // bravo_current_level이 없으면 1로 초기화
         const bravoLevel = result.bravo_current_level || 1;
         renderDashboard(bravoLevel);
     }
@@ -55,8 +55,8 @@ const BravoApp = (() => {
         container().innerHTML = `
             <div style="max-width:480px;margin:0 auto;padding:60px 20px;text-align:center;">
                 <div style="font-size:56px;margin-bottom:16px;">🔒</div>
-                <h2 style="font-size:22px;font-weight:800;color:#1E293B;margin:0 0 8px;">Bravo 도전</h2>
-                <p style="color:#64748B;font-size:14px;line-height:1.6;">
+                <h2 style="font-size:22px;font-weight:800;color:#333;margin:0 0 8px;">Bravo 도전</h2>
+                <p style="color:#9E9E9E;font-size:14px;line-height:1.6;">
                     ACE 3를 통과하면<br>Bravo 도전이 열려요!
                 </p>
                 <a href="/ace/" style="display:inline-block;margin-top:20px;padding:12px 28px;border-radius:14px;background:#FF5722;color:#fff;font-weight:700;text-decoration:none;">
@@ -69,30 +69,25 @@ const BravoApp = (() => {
     // 대시보드 (레벨 선택)
     // ========================================
     function renderDashboard(bravoLevel) {
-        const bands = statusData.bands || {};
         const levelsMeta = statusData.levels_meta || {};
         const levelStatus = statusData.level_status || {};
 
         let html = `
-            <div class="bravo-header" style="position:relative;">
-                <a href="/ace/" class="bravo-back-btn" title="돌아가기">←</a>
-                <div class="bravo-header-sub">소리튠 주니어</div>
-                <div class="bravo-header-title">
-                    <span style="font-size:22px;">🏆</span>
-                    <h1>Bravo 도전</h1>
-                </div>
-            </div>
             <div class="bravo-dashboard">
+                <div class="bravo-hero">
+                    <div class="bravo-hero-icon">🏆</div>
+                    <h2 class="bravo-hero-title">Bravo 도전</h2>
+                    <p class="bravo-hero-desc">소리튠 주니어 영어 실력 인증</p>
+                </div>
                 <div class="bravo-level-cards">`;
 
-        // 레벨 1~6 카드 (현재 Yellow + Green만)
         const bandGroups = [
             { key: 'yellow', label: '🟡 Yellow반', levels: [1,2,3] },
             { key: 'green',  label: '🟢 Green반',  levels: [4,5,6] },
         ];
 
         for (const bg of bandGroups) {
-            html += `<div style="font-size:13px;font-weight:700;color:#64748B;margin:12px 0 4px;padding-left:4px;">${bg.label}</div>`;
+            html += `<div class="bravo-band-label">${bg.label}</div>`;
 
             for (const lv of bg.levels) {
                 const m = levelsMeta[lv];
@@ -110,7 +105,7 @@ const BravoApp = (() => {
                     chipHtml = '<span class="bravo-level-card-chip pass">PASS ✅</span>';
                     cardClass = 'passed';
                 } else if (isSubmitted) {
-                    chipHtml = '<span class="bravo-level-card-chip waiting">확인 대기</span>';
+                    chipHtml = '<span class="bravo-level-card-chip waiting">확인 대기 ⏳</span>';
                     cardClass = '';
                 } else if (isAvailable) {
                     chipHtml = '<span class="bravo-level-card-chip available">도전 가능</span>';
@@ -123,7 +118,7 @@ const BravoApp = (() => {
                 const clickAttr = (isAvailable && !isPassed) ? `onclick="BravoApp.startLevel(${lv})"` : '';
 
                 html += `
-                    <div class="bravo-level-card ${cardClass}" ${clickAttr} style="--level-color:${m.color};--level-light:${m.color}15;">
+                    <div class="bravo-level-card ${cardClass}" ${clickAttr}>
                         <div class="bravo-level-card-icon" style="background:${m.color};">${lv}</div>
                         <div class="bravo-level-card-info">
                             <div class="bravo-level-card-name">${m.bravo}</div>
@@ -134,7 +129,11 @@ const BravoApp = (() => {
             }
         }
 
-        html += `</div></div>`;
+        html += `</div>
+            <div style="text-align:center; margin-top:20px;">
+                <a href="/ace/" style="color:#999;font-size:14px;text-decoration:none;">← ACE 도전으로 돌아가기</a>
+            </div>
+        </div>`;
         container().innerHTML = html;
     }
 
@@ -148,6 +147,7 @@ const BravoApp = (() => {
         qi = 0;
         answers = {};
         recordings = {};
+        clearAdvanceTimer();
 
         // 세션 시작
         const sessionResult = await App.post('/api/bravo.php?action=start_session', { level });
@@ -219,6 +219,71 @@ const BravoApp = (() => {
     }
 
     // ========================================
+    // 자동 단계 전환
+    // ========================================
+    function clearAdvanceTimer() {
+        if (advanceTimer) { clearTimeout(advanceTimer); advanceTimer = null; }
+    }
+
+    function scheduleAdvance(delayMs) {
+        clearAdvanceTimer();
+        advanceTimer = setTimeout(() => {
+            advanceTimer = null;
+            const parts = getPartList();
+            if (part < parts.length - 1) {
+                part++;
+                qi = 0;
+                showStageTransition();
+            }
+        }, delayMs);
+    }
+
+    function showStageTransition() {
+        const parts = getPartList();
+        const cp = parts[part];
+
+        container().innerHTML = `
+            <div style="padding-bottom:80px;">
+                ${renderStepper()}
+                <div class="bravo-stage-transition">
+                    <div class="bravo-stage-transition-icon">${cp.icon}</div>
+                    <div class="bravo-stage-transition-title">${cp.title}</div>
+                    <div class="bravo-stage-transition-desc">준비됐지? 시작해볼까!</div>
+                </div>
+            </div>`;
+
+        setTimeout(() => renderTest(), 1200);
+    }
+
+    // ========================================
+    // 스텝퍼 렌더링
+    // ========================================
+    function renderStepper() {
+        const parts = getPartList();
+        const completion = getPartCompletion();
+
+        let html = '<div class="bravo-stepper">';
+        for (let pi = 0; pi < parts.length; pi++) {
+            const p = parts[pi];
+            const isDone = completion[pi];
+            const isActive = pi === part;
+            const stepClass = isDone && !isActive ? 'done' : isActive ? 'active' : '';
+
+            if (pi > 0) {
+                html += `<div class="bravo-step-line ${completion[pi - 1] ? 'done' : ''}"></div>`;
+            }
+
+            html += `
+                <div class="bravo-step ${stepClass}">
+                    <div class="bravo-step-dot">${isDone && !isActive ? '✓' : p.icon}</div>
+                    <div class="bravo-step-label">${p.title}</div>
+                </div>`;
+        }
+        html += '</div>';
+        return html;
+    }
+
+    // ========================================
     // 테스트 렌더링
     // ========================================
     function renderTest() {
@@ -227,68 +292,84 @@ const BravoApp = (() => {
         const cp = parts[part];
         const item = cp.items[qi];
         const allDone = completion.every(c => c);
-        const color = meta.color;
+        const currentPartDone = completion[part];
+        const isLastPart = part >= parts.length - 1;
+        const isLastItem = qi >= cp.items.length - 1;
+        const isFirstItem = qi === 0;
+
+        // 완료된 파트 수
+        const doneCount = completion.filter(c => c).length;
 
         let html = `
             <div style="padding-bottom:80px;">
-                <!-- 테스트 헤더 -->
-                <div class="bravo-test-header" style="background:linear-gradient(135deg,${color},${color}CC);">
-                    <div class="bravo-test-header-top">
-                        <div>
-                            <div class="bravo-test-header-sub">${meta.bravo} · ${meta.level}</div>
-                            <div class="bravo-test-header-title">${meta.title}</div>
-                        </div>
-                        <button onclick="BravoApp.exitTest()" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:#fff;font-size:10px;cursor:pointer;font-weight:600;">나가기</button>
-                    </div>
-                    <div class="bravo-part-tabs">`;
-
-        for (let pi = 0; pi < parts.length; pi++) {
-            const p = parts[pi];
-            html += `
-                <button class="bravo-part-tab ${part === pi ? 'active' : ''}" onclick="BravoApp.switchPart(${pi})">
-                    <div class="bravo-part-tab-icon">${p.icon}</div>
-                    <div class="bravo-part-tab-name">${p.title}</div>
-                    ${completion[pi] ? '<div class="bravo-part-tab-check">✓</div>' : ''}
-                </button>`;
-        }
-
-        html += `</div></div>
-            <div class="bravo-test-content">
-                <div class="bravo-progress-bar">
-                    <span class="bravo-progress-label" style="color:${color};">${cp.icon} ${cp.title}</span>
-                    <span class="bravo-progress-count">${qi + 1} / ${cp.items.length}</span>
+                <!-- 헤더 -->
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0;">
+                    <span style="font-size:14px;font-weight:800;color:#333;">${meta.bravo} · ${meta.title}</span>
+                    <button onclick="BravoApp.exitTest()" style="padding:6px 14px;border-radius:8px;border:1.5px solid #E0E0E0;background:#fff;color:#999;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit;">나가기</button>
                 </div>
-                <div class="bravo-progress-track">
-                    <div class="bravo-progress-fill" style="width:${((qi + 1) / cp.items.length) * 100}%;background:${color};"></div>
-                </div>`;
+
+                <!-- 스텝퍼 -->
+                ${renderStepper()}
+
+                <!-- 테스트 컨텐츠 -->
+                <div class="bravo-test-content" style="padding:0 16px;">
+                    <div class="bravo-progress-bar">
+                        <span class="bravo-progress-label">${cp.icon} ${cp.title}</span>
+                        <span class="bravo-progress-count">${qi + 1} / ${cp.items.length}</span>
+                    </div>
+                    <div class="bravo-progress-track">
+                        <div class="bravo-progress-fill" style="width:${((qi + 1) / cp.items.length) * 100}%;"></div>
+                    </div>`;
 
         // 카드 렌더
         if (cp.key === 'quiz') {
-            html += renderQuizCard(item, color);
+            html += renderQuizCard(item);
         } else if (cp.key === 'sentence') {
-            html += renderSentenceCard(item, color);
+            html += renderSentenceCard(item);
         } else if (cp.key === 'phonics') {
-            html += renderPhonicsCard(item, color);
+            html += renderPhonicsCard(item);
         } else if (cp.key === 'block') {
-            html += renderBlockCard(item, color);
+            html += renderBlockCard(item);
         }
 
         // 네비게이션
-        html += `
-                <div class="bravo-nav">
-                    <button class="bravo-nav-prev" onclick="BravoApp.prevItem()" ${qi === 0 ? 'disabled' : ''}>← 이전</button>
-                    <button class="bravo-nav-next" onclick="BravoApp.nextItem()" style="background:${color};" ${qi >= cp.items.length - 1 ? 'disabled' : ''}>다음 →</button>
-                </div>
-            </div>
+        let prevBtnHtml, nextBtnHtml;
 
-            <!-- 제출 바 -->
-            <div class="bravo-submit-bar">
-                <button class="bravo-submit-btn" onclick="BravoApp.submitTest()" ${!allDone ? 'disabled' : ''}
-                    style="${allDone ? `background:linear-gradient(135deg,${color},#FF6B35);color:#fff;` : ''}">
-                    ${allDone ? `🎯 ${meta.bravo} 도전 제출!` : '3가지 모두 완료하면 제출!'}
-                </button>
-            </div>
-        </div>`;
+        // 이전 버튼
+        if (isFirstItem && part > 0) {
+            prevBtnHtml = `<button class="bravo-nav-prev" onclick="BravoApp.prevPart()">← 이전 단계</button>`;
+        } else if (isFirstItem) {
+            prevBtnHtml = `<button class="bravo-nav-prev" disabled>← 이전</button>`;
+        } else {
+            prevBtnHtml = `<button class="bravo-nav-prev" onclick="BravoApp.prevItem()">← 이전</button>`;
+        }
+
+        // 다음 버튼: 녹음 섹션에서는 현재 문항 녹음 완료 전까지 비활성화
+        const needsRecording = (cp.key === 'sentence' || cp.key === 'phonics');
+        const currentItemDone = needsRecording ? !!recordings[item.id] : true;
+
+        if (isLastItem && currentPartDone && !isLastPart) {
+            nextBtnHtml = `<button class="bravo-nav-next" onclick="BravoApp.advancePart()">다음 단계 →</button>`;
+        } else if (isLastItem || !currentItemDone) {
+            nextBtnHtml = `<button class="bravo-nav-next" disabled>다음 →</button>`;
+        } else {
+            nextBtnHtml = `<button class="bravo-nav-next" onclick="BravoApp.nextItem()">다음 →</button>`;
+        }
+
+        html += `
+                    <div class="bravo-nav">
+                        ${prevBtnHtml}
+                        ${nextBtnHtml}
+                    </div>
+                </div>
+
+                <!-- 제출 바 -->
+                <div class="bravo-submit-bar">
+                    <button class="bravo-submit-btn" onclick="BravoApp.submitTest()" ${!allDone ? 'disabled' : ''}>
+                        ${allDone ? '🎯 도전 제출!' : `${doneCount}/3 완료`}
+                    </button>
+                </div>
+            </div>`;
 
         container().innerHTML = html;
     }
@@ -296,7 +377,7 @@ const BravoApp = (() => {
     // ========================================
     // 퀴즈 카드
     // ========================================
-    function renderQuizCard(item, color) {
+    function renderQuizCard(item) {
         const d = item.item_data;
         const sel = answers[item.id];
 
@@ -317,7 +398,7 @@ const BravoApp = (() => {
             if (sel === d.a) {
                 resultHtml = '<div class="bravo-quiz-result success">정답! 🎉</div>';
             } else {
-                resultHtml = `<div class="bravo-quiz-answer">정답: <strong style="color:#059669;">${d.a}</strong></div>`;
+                resultHtml = `<div class="bravo-quiz-answer">정답: <strong style="color:#4CAF50;">${d.a}</strong></div>`;
             }
         }
 
@@ -335,41 +416,41 @@ const BravoApp = (() => {
     // ========================================
     // 문장 카드
     // ========================================
-    function renderSentenceCard(item, color) {
+    function renderSentenceCard(item) {
         const d = item.item_data;
         const done = recordings[item.id];
 
         return `
-            <div class="bravo-card ${done ? 'done' : ''}" style="text-align:center;${done ? '' : `border-color:${color}30;`}">
+            <div class="bravo-card ${done ? 'done' : ''}">
                 ${done ? '<div class="bravo-card-check">✓</div>' : ''}
                 <div class="bravo-sentence-text">"${d.s}"</div>
                 <div class="bravo-sentence-kr">${d.kr}</div>
-                ${d.p ? `<div class="bravo-sentence-pattern" style="background:${color}15;color:${color};">🧱 ${d.p}</div>` : ''}
-                ${renderRecBtn(item.id, color)}
+                ${d.p ? `<div class="bravo-sentence-pattern">🧱 ${d.p}</div>` : ''}
+                ${renderRecBtn(item.id)}
             </div>`;
     }
 
     // ========================================
     // 파닉스 카드
     // ========================================
-    function renderPhonicsCard(item, color) {
+    function renderPhonicsCard(item) {
         const d = item.item_data;
         const done = recordings[item.id];
 
         return `
-            <div class="bravo-card ${done ? 'done' : ''}" style="text-align:center;padding:40px 22px;${done ? '' : `border-color:${color}30;`}">
+            <div class="bravo-card ${done ? 'done' : ''}" style="padding:40px 24px;">
                 ${done ? '<div class="bravo-card-check">✓</div>' : ''}
-                <div class="bravo-phonics-letters" style="color:${color};background:${color}15;">${d.letters}</div>
+                <div class="bravo-phonics-letters">${d.letters}</div>
                 <div class="bravo-phonics-arrow">↓ 합치면</div>
                 <div class="bravo-phonics-word">${d.word}</div>
-                ${renderRecBtn(item.id, color)}
+                ${renderRecBtn(item.id)}
             </div>`;
     }
 
     // ========================================
     // 블록 카드
     // ========================================
-    function renderBlockCard(item, color) {
+    function renderBlockCard(item) {
         const d = item.item_data;
         const nb = d.blanks || 1;
         const filled = answers[item.id] || {};
@@ -392,10 +473,10 @@ const BravoApp = (() => {
                 const correct = val === d.a[bi];
                 const wrong = val && !correct;
                 const isCurrent = bi === currentBlank && !allFilled;
-                let style = `border:2.5px ${isCurrent ? 'solid' : 'dashed'} ${correct ? '#059669' : wrong ? '#EF4444' : isCurrent ? color : color + '60'};`;
-                style += `background:${correct ? 'rgba(5,150,105,0.12)' : wrong ? 'rgba(239,68,68,0.1)' : isCurrent ? color + '15' : color + '08'};`;
-                style += `color:${correct ? '#059669' : wrong ? '#EF4444' : val ? color : '#94A3B8'};`;
-                if (isCurrent) style += 'transform:scale(1.05);box-shadow:0 0 0 3px ' + color + '25;';
+                let style = `border:2.5px ${isCurrent ? 'solid' : 'dashed'} ${correct ? '#4CAF50' : wrong ? '#F44336' : isCurrent ? '#FF5722' : '#E0E0E0'};`;
+                style += `background:${correct ? 'rgba(76,175,80,0.12)' : wrong ? 'rgba(244,67,54,0.1)' : isCurrent ? 'rgba(255,87,34,0.08)' : '#FAFAFA'};`;
+                style += `color:${correct ? '#4CAF50' : wrong ? '#F44336' : val ? '#FF5722' : '#BDBDBD'};`;
+                if (isCurrent) style += 'transform:scale(1.05);box-shadow:0 0 0 3px rgba(255,87,34,0.15);';
                 slotsHtml += `<div class="bravo-block-blank" style="${style}">${val || (isCurrent ? '?' : '·')}</div>`;
             }
         }
@@ -419,18 +500,18 @@ const BravoApp = (() => {
             successHtml = `
                 <div class="bravo-block-success">
                     <div class="bravo-block-success-text">"${d.r}"</div>
-                    <div style="font-size:13px;color:#64748B;margin-top:4px;">완벽해! 🎉</div>
+                    <div style="font-size:13px;color:#999;margin-top:4px;">완벽해! 🎉</div>
                 </div>`;
         }
 
         return `
-            <div class="bravo-card" style="${allCorrect ? 'border:2px solid #059669;' : ''}">
+            <div class="bravo-card" style="${allCorrect ? 'border:2px solid #4CAF50;' : ''}">
                 <div class="bravo-block-hint">
                     <div class="bravo-block-hint-label">💡 이런 뜻의 문장을 만들어봐!</div>
                     <div class="bravo-block-hint-text">${d.kr}</div>
                 </div>
                 <div class="bravo-block-slots">${slotsHtml}</div>
-                ${!allFilled ? `<div class="bravo-block-indicator" style="color:${color};">▲ ${currentBlank + 1}/${nb}번째 빈칸을 채워봐!</div>` : ''}
+                ${!allFilled ? `<div class="bravo-block-indicator">▲ ${currentBlank + 1}/${nb}번째 빈칸을 채워봐!</div>` : ''}
                 ${choicesHtml ? `<div class="bravo-block-choices">${choicesHtml}</div>` : ''}
                 ${successHtml}
             </div>`;
@@ -439,7 +520,7 @@ const BravoApp = (() => {
     // ========================================
     // 녹음 버튼
     // ========================================
-    function renderRecBtn(itemId, color) {
+    function renderRecBtn(itemId) {
         const done = recordings[itemId];
         const isRecording = AceRecorder.isRecording();
 
@@ -457,11 +538,11 @@ const BravoApp = (() => {
         if (done) {
             return `
                 <div class="bravo-rec-area">
-                    <button class="bravo-rec-play-btn" onclick="BravoApp.playRec(${itemId})" style="border-color:${color};color:${color};">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="${color}"><polygon points="5 3 19 12 5 21"/></svg>
+                    <button class="bravo-rec-play-btn" onclick="BravoApp.playRec(${itemId})">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
                     </button>
-                    <button class="bravo-rec-btn" style="border-color:${color};background:linear-gradient(135deg,${color}15,${color}30);" onclick="BravoApp.startRec(${itemId})">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="${color}"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                    <button class="bravo-rec-btn" onclick="BravoApp.startRec(${itemId})">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
                     </button>
                     <span class="bravo-rec-hint">✅ 녹음 완료 · 다시 하려면 🎤</span>
                 </div>`;
@@ -469,8 +550,8 @@ const BravoApp = (() => {
 
         return `
             <div class="bravo-rec-area">
-                <button class="bravo-rec-btn" style="border-color:${color};background:linear-gradient(135deg,${color}15,${color}30);" onclick="BravoApp.startRec(${itemId})">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="${color}"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                <button class="bravo-rec-btn" onclick="BravoApp.startRec(${itemId})">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
                 </button>
                 <span class="bravo-rec-hint">🎤 읽고 녹음해봐!</span>
             </div>`;
@@ -483,6 +564,8 @@ const BravoApp = (() => {
         const item = items.find(i => i.id == itemId);
         if (!item) return;
 
+        const wasComplete = getPartCompletion()[part];
+
         answers[itemId] = answer;
 
         // 서버에 저장
@@ -493,11 +576,18 @@ const BravoApp = (() => {
         });
 
         renderTest();
+
+        // 이 액션으로 섹션이 완료되었으면 자동 전환
+        if (!wasComplete && getPartCompletion()[part] && part < getPartList().length - 1) {
+            scheduleAdvance(1500);
+        }
     }
 
     async function selectBlock(itemId, blankIndex, choice) {
         const item = items.find(i => i.id == itemId);
         if (!item) return;
+
+        const wasComplete = getPartCompletion()[part];
 
         if (!answers[itemId]) answers[itemId] = {};
         answers[itemId][blankIndex] = choice;
@@ -517,6 +607,11 @@ const BravoApp = (() => {
         }
 
         renderTest();
+
+        // 이 액션으로 섹션이 완료되었으면 자동 전환
+        if (!wasComplete && getPartCompletion()[part] && part < getPartList().length - 1) {
+            scheduleAdvance(1500);
+        }
     }
 
     let playingAudio = null;
@@ -545,6 +640,8 @@ const BravoApp = (() => {
     async function stopRec(itemId) {
         if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
 
+        const wasComplete = getPartCompletion()[part];
+
         try {
             const blob = await AceRecorder.stop();
             recStartTime = 0;
@@ -565,6 +662,7 @@ const BravoApp = (() => {
             const result = await App.api('/api/bravo.php?action=upload_audio', {
                 method: 'POST',
                 data: formData,
+                showError: false,
             });
 
             if (result.success) {
@@ -577,24 +675,59 @@ const BravoApp = (() => {
         }
 
         renderTest();
+
+        // 이 녹음으로 섹션이 완료되었으면 자동 전환
+        if (!wasComplete && getPartCompletion()[part] && part < getPartList().length - 1) {
+            scheduleAdvance(1200);
+        }
     }
 
-    function switchPart(newPart) {
-        part = newPart;
-        qi = 0;
-        renderTest();
+    // ========================================
+    // 네비게이션
+    // ========================================
+    function cancelRecordingIfActive() {
+        if (AceRecorder.isRecording()) {
+            if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+            AceRecorder.stop().catch(() => {});
+            recStartTime = 0;
+        }
     }
 
     function prevItem() {
+        clearAdvanceTimer();
+        cancelRecordingIfActive();
         if (qi > 0) { qi--; renderTest(); }
     }
 
     function nextItem() {
+        clearAdvanceTimer();
         const parts = getPartList();
         if (qi < parts[part].items.length - 1) { qi++; renderTest(); }
     }
 
+    function advancePart() {
+        clearAdvanceTimer();
+        const parts = getPartList();
+        if (part < parts.length - 1) {
+            part++;
+            qi = 0;
+            showStageTransition();
+        }
+    }
+
+    function prevPart() {
+        clearAdvanceTimer();
+        cancelRecordingIfActive();
+        if (part > 0) {
+            part--;
+            const parts = getPartList();
+            qi = parts[part].items.length - 1;
+            renderTest();
+        }
+    }
+
     function exitTest() {
+        clearAdvanceTimer();
         App.confirm('테스트를 그만둘까?', () => {
             AceRecorder.cleanup();
             if (embeddedMode) {
@@ -609,6 +742,7 @@ const BravoApp = (() => {
     // 제출
     // ========================================
     async function submitTest() {
+        clearAdvanceTimer();
         const completion = getPartCompletion();
         if (!completion.every(c => c)) {
             Toast.warning('3가지 모두 완료해야 제출할 수 있어!');
@@ -624,7 +758,7 @@ const BravoApp = (() => {
         App.hideLoading();
 
         if (!result.success) {
-            Toast.error(result.error || '제출 실패');
+            if (!result.error) Toast.error('제출 실패');
             return;
         }
 
@@ -636,7 +770,6 @@ const BravoApp = (() => {
     // 결과 화면
     // ========================================
     function renderResult(result) {
-        const color = meta.color;
         const qParts = result.quiz_score ? result.quiz_score.split('/') : ['0','0'];
         const bParts = result.block_score ? result.block_score.split('/') : ['0','0'];
         const qc = parseInt(qParts[0]), qt = parseInt(qParts[1]);
@@ -644,70 +777,61 @@ const BravoApp = (() => {
         const qPct = qt > 0 ? Math.round(qc / qt * 100) : 0;
         const bPct = bt > 0 ? Math.round(bc / bt * 100) : 0;
 
+        container().innerHTML = `
+            <div class="bravo-result">
+                <div class="bravo-confetti-container" id="confetti-container"></div>
+                <div class="bravo-result-content">
+                    <div class="bravo-result-coin-drop">
+                        <div class="bravo-result-coin-icon">🪙</div>
+                        <div class="bravo-result-coin-text">+3 코인!</div>
+                    </div>
+                    <div class="bravo-result-title">🎉 ${meta.bravo} 제출 완료!</div>
+                    <div class="bravo-result-sub">코치 선생님이 결과를 확인할 거야 ✨</div>
+
+                    <div class="bravo-result-score">
+                        <div class="bravo-result-score-title">📊 테스트 결과</div>
+                        <div class="bravo-result-score-row">
+                            <span class="bravo-result-score-label">📝 단어 퀴즈</span>
+                            <div class="bravo-result-score-bar">
+                                <div class="bravo-result-score-fill" style="width:${qPct}%;background:${qPct >= 60 ? '#4CAF50' : '#F44336'};"></div>
+                            </div>
+                            <span class="bravo-result-score-num" style="color:${qPct >= 60 ? '#4CAF50' : '#F44336'};">${qc}/${qt}</span>
+                        </div>
+                        ${bt > 0 ? `
+                        <div class="bravo-result-score-row">
+                            <span class="bravo-result-score-label">🧱 블록</span>
+                            <div class="bravo-result-score-bar">
+                                <div class="bravo-result-score-fill" style="width:${bPct}%;background:${bPct >= 60 ? '#4CAF50' : '#F44336'};"></div>
+                            </div>
+                            <span class="bravo-result-score-num" style="color:${bPct >= 60 ? '#4CAF50' : '#F44336'};">${bc}/${bt}</span>
+                        </div>` : ''}
+                        <div class="bravo-result-auto ${result.auto_result === 'pass' ? 'pass' : 'fail'}">
+                            자동 채점: ${result.auto_result === 'pass' ? 'PASS ✅' : 'FAIL ❌'}
+                        </div>
+                    </div>
+
+                    <button class="bravo-result-home" onclick="BravoApp.goHome()">확인</button>
+                </div>
+            </div>`;
+
         // 컨페티
         spawnConfetti();
-
-        container().innerHTML = `
-            <div class="bravo-header" style="position:relative;">
-                <div class="bravo-header-sub">소리튠 주니어</div>
-                <div class="bravo-header-title">
-                    <span style="font-size:22px;">🏆</span>
-                    <h1>Bravo 도전</h1>
-                </div>
-            </div>
-            <div class="bravo-result">
-                <div class="bravo-result-emoji">🎉</div>
-                <div class="bravo-result-title">잘했어!</div>
-                <div class="bravo-result-coins">
-                    <span class="bravo-result-coin">🪙</span>
-                    <span class="bravo-result-coin">🪙</span>
-                    <span class="bravo-result-coin">🪙</span>
-                </div>
-                <div class="bravo-result-coin-text">코인 3개 획득!</div>
-
-                <div class="bravo-result-score">
-                    <div class="bravo-result-score-title">📊 테스트 결과</div>
-                    <div class="bravo-result-score-row">
-                        <span class="bravo-result-score-label">📝 단어 퀴즈</span>
-                        <div class="bravo-result-score-bar">
-                            <div class="bravo-result-score-fill" style="width:${qPct}%;background:${qPct >= 60 ? '#059669' : '#EF4444'};"></div>
-                        </div>
-                        <span class="bravo-result-score-num" style="color:${qPct >= 60 ? '#059669' : '#EF4444'};">${qc}/${qt}</span>
-                    </div>
-                    ${bt > 0 ? `
-                    <div class="bravo-result-score-row">
-                        <span class="bravo-result-score-label">🧱 블록</span>
-                        <div class="bravo-result-score-bar">
-                            <div class="bravo-result-score-fill" style="width:${bPct}%;background:${bPct >= 60 ? '#059669' : '#EF4444'};"></div>
-                        </div>
-                        <span class="bravo-result-score-num" style="color:${bPct >= 60 ? '#059669' : '#EF4444'};">${bc}/${bt}</span>
-                    </div>` : ''}
-                    <div style="margin-top:10px;padding:8px 12px;border-radius:10px;text-align:center;font-size:13px;font-weight:700;
-                        background:${result.auto_result === 'pass' ? '#ECFDF5' : '#FEF2F2'};
-                        color:${result.auto_result === 'pass' ? '#059669' : '#EF4444'};">
-                        자동 채점: ${result.auto_result === 'pass' ? 'PASS ✅' : 'FAIL ❌'}
-                    </div>
-                </div>
-
-                <div class="bravo-result-msg">
-                    코치 선생님이 결과를 확인할 거야<br>결과 나오면 알려줄게 ✨
-                </div>
-
-                <button class="bravo-result-home" onclick="BravoApp.goHome()">처음으로 🏠</button>
-            </div>`;
     }
 
     function spawnConfetti() {
-        const emojis = ['🎉', '🎊', '⭐', '🌟', '💫', '✨'];
-        for (let i = 0; i < 30; i++) {
-            const el = document.createElement('div');
-            el.className = 'bravo-confetti';
-            el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-            el.style.left = Math.random() * 100 + 'vw';
-            el.style.animationDelay = Math.random() * 2 + 's';
-            el.style.animationDuration = (2 + Math.random() * 2) + 's';
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 5000);
+        const ct = document.getElementById('confetti-container');
+        if (!ct) return;
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFD93D', '#6BCB77', '#FF8E53'];
+        for (let i = 0; i < 50; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'bravo-confetti-piece';
+            confetti.style.cssText = `
+                left: ${Math.random() * 100}%;
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                animation-delay: ${Math.random() * 2}s;
+                animation-duration: ${2 + Math.random() * 2}s;
+            `;
+            ct.appendChild(confetti);
         }
     }
 
@@ -734,7 +858,7 @@ const BravoApp = (() => {
     }
 
     return {
-        startLevel, startFromAce, switchPart, prevItem, nextItem, exitTest,
+        startLevel, startFromAce, prevItem, nextItem, advancePart, prevPart, exitTest,
         selectQuiz, selectBlock, startRec, stopRec, playRec,
         submitTest, goHome,
     };

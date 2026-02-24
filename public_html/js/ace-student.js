@@ -10,6 +10,7 @@ const AceStudentApp = (() => {
     let recordingSeconds = 0;
     let statusData = null;
     let playingAudio = null;
+    let activeSection = null; // 'ace' or 'bravo'
 
     function esc(s) {
         const d = document.createElement('div');
@@ -62,15 +63,24 @@ const AceStudentApp = (() => {
         const awaitingEval = statusData.awaiting_evaluation;
         const beforeCompleted = statusData.before_completed;
 
-        // ACE 레벨별 상태
-        const levelInfo = [
-            { level: 1, name: 'ACE 1', desc: '1음절 단어 5개', icon: '🔤' },
-            { level: 2, name: 'ACE 2', desc: '긴 단어 5개', icon: '📝' },
-            { level: 3, name: 'ACE 3', desc: '문장 3개', icon: '💬' },
-        ];
+        const aceCompleted = level >= 4;
+        const bravoLevel = aceCompleted ? (statusData.bravo_current_level || 1) : 0;
+        const bravoStatusMap = statusData.bravo_level_status || {};
+        const bravoAwaiting = aceCompleted && Object.values(bravoStatusMap).some(s => s.status === 'submitted');
 
+        // 디폴트 섹션
+        if (!activeSection) {
+            activeSection = aceCompleted ? 'bravo' : 'ace';
+        }
+
+        // 토글 뱃지
         const passedLevels = new Set(evals.filter(e => e.result === 'pass').map(e => parseInt(e.ace_level)));
+        const aceBadge = aceCompleted ? ' ✅' : ` ${passedLevels.size}/3`;
+        const bravoPassedCount = aceCompleted
+            ? Object.values(bravoStatusMap).filter(s => s.coach_result === 'pass').length : 0;
+        const bravoBadge = !aceCompleted ? ' 🔒' : ` ${bravoPassedCount}/6`;
 
+        // ── 공통 히어로 ──
         let html = `
             <div class="ace-dashboard">
                 <div class="ace-hero">
@@ -78,9 +88,16 @@ const AceStudentApp = (() => {
                     <h2 class="ace-hero-title">ACE/BRAVO Challenge</h2>
                     <p class="ace-hero-desc">영어 소리 성장 인증 시험</p>
                 </div>
+                <div class="ace-section-toggle tabs" id="ace-section-tabs">
+                    <button class="tab-btn${activeSection === 'ace' ? ' active' : ''}" data-tab="ace">ACE${aceBadge}</button>
+                    <button class="tab-btn${activeSection === 'bravo' ? ' active' : ''}" data-tab="bravo">BRAVO${bravoBadge}</button>
+                </div>
         `;
 
-        // 도전 버튼 (타이틀 바로 아래)
+        // ── ACE 탭 ──
+        html += `<div id="tab-ace" class="tab-content${activeSection === 'ace' ? ' active' : ''}">`;
+
+        // ACE 액션 영역
         if (awaitingEval) {
             html += `
                 <div class="ace-action">
@@ -89,8 +106,7 @@ const AceStudentApp = (() => {
                         <div style="font-size:18px; font-weight:800; color:#FF9800;">평가를 기다리고 있어요!</div>
                         <div style="font-size:14px; color:#999; margin-top:8px;">코치 선생님이 소리를 듣고 있어요.<br>평가가 끝나면 다시 도전할 수 있습니다.</div>
                     </div>
-                </div>
-            `;
+                </div>`;
         } else if (level === null) {
             html += `
                 <div class="ace-action">
@@ -98,8 +114,7 @@ const AceStudentApp = (() => {
                         🎤 Before 녹음 시작하기
                     </button>
                     <p class="ace-action-hint">ACE1 단어 5개를 녹음합니다</p>
-                </div>
-            `;
+                </div>`;
         } else if (level < 4) {
             const levelNames = { 1: 'ACE1', 2: 'ACE2', 3: 'ACE3' };
             const nextItems = level < 3
@@ -111,9 +126,15 @@ const AceStudentApp = (() => {
                         🎤 ${levelNames[level]} 도전하기
                     </button>
                     <p class="ace-action-hint">${nextItems}를 녹음합니다</p>
-                </div>
-            `;
+                </div>`;
         }
+
+        // ACE 레벨 카드
+        const levelInfo = [
+            { level: 1, name: 'ACE 1', desc: '1음절 단어 5개', icon: '🔤' },
+            { level: 2, name: 'ACE 2', desc: '긴 단어 5개', icon: '📝' },
+            { level: 3, name: 'ACE 3', desc: '문장 3개', icon: '💬' },
+        ];
 
         html += `<div class="ace-levels">`;
 
@@ -127,8 +148,7 @@ const AceStudentApp = (() => {
                         <div class="ace-level-desc">입학 소리 기록</div>
                     </div>
                     <div class="ace-level-badge passed">완료 ✅</div>
-                </div>
-            `;
+                </div>`;
         } else {
             html += `
                 <div class="ace-level-card current">
@@ -138,11 +158,9 @@ const AceStudentApp = (() => {
                         <div class="ace-level-desc">입학 소리 기록</div>
                     </div>
                     <div class="ace-level-badge current">도전 가능</div>
-                </div>
-            `;
+                </div>`;
         }
 
-        // ACE 레벨 카드
         levelInfo.forEach(li => {
             const passed = passedLevels.has(li.level);
             const isCurrent = level === li.level && beforeCompleted;
@@ -151,17 +169,13 @@ const AceStudentApp = (() => {
 
             let statusBadge, statusClass;
             if (passed) {
-                statusBadge = 'PASS ✅';
-                statusClass = 'passed';
+                statusBadge = 'PASS ✅'; statusClass = 'passed';
             } else if (isCurrent) {
-                statusBadge = '도전 가능';
-                statusClass = 'current';
+                statusBadge = '도전 가능'; statusClass = 'current';
             } else if (isLocked && !isComplete) {
-                statusBadge = '🔒';
-                statusClass = 'locked';
+                statusBadge = '🔒'; statusClass = 'locked';
             } else {
-                statusBadge = '대기';
-                statusClass = 'waiting';
+                statusBadge = '대기'; statusClass = 'waiting';
             }
 
             html += `
@@ -172,55 +186,89 @@ const AceStudentApp = (() => {
                         <div class="ace-level-desc">${li.desc}</div>
                     </div>
                     <div class="ace-level-badge ${statusClass}">${statusBadge}</div>
-                </div>
-            `;
+                </div>`;
         });
 
-        // Bravo 카드 — ACE 카드 바로 아래 이어서 표시 (ACE 미완료 시 전부 잠김)
-        {
-            const aceCompleted = level >= 4;
-            const bravoLevel = aceCompleted ? (statusData.bravo_current_level || 1) : 0;
-            const bravoStatusMap = statusData.bravo_level_status || {};
-            const bravoLevels = [
-                { lv: 1, name: 'Bravo Jr 1', desc: 'Level aa · 파닉스 마스터', color: '#F59E0B' },
-                { lv: 2, name: 'Bravo Jr 2', desc: 'Level a · 소리블록 기초', color: '#FB923C' },
-                { lv: 3, name: 'Bravo Jr 3', desc: 'Level b · 소리블록 확장', color: '#EA580C' },
-                { lv: 4, name: 'Bravo Jr 4', desc: 'Level C · 기초 문장 패턴', color: '#10B981' },
-                { lv: 5, name: 'Bravo Jr 5', desc: 'Level D · 복합 문장 패턴', color: '#059669' },
-                { lv: 6, name: 'Bravo Jr 6', desc: 'Level E · 스토리 & 표현', color: '#047857' },
-            ];
+        html += `</div></div>`; // close ace-levels + tab-ace
 
-            for (const bl of bravoLevels) {
-                const ls = bravoStatusMap[bl.lv];
-                const isPassed = aceCompleted && bl.lv < bravoLevel;
-                const isSubmitted = aceCompleted && ls && ls.status === 'submitted';
-                const isAvailable = aceCompleted && bl.lv === bravoLevel && !isSubmitted;
+        // ── BRAVO 탭 ──
+        html += `<div id="tab-bravo" class="tab-content${activeSection === 'bravo' ? ' active' : ''}">`;
 
-                let badge, cls, clickAttr = '';
-                if (isPassed) {
-                    badge = 'PASS ✅'; cls = 'passed';
-                } else if (isSubmitted) {
-                    badge = '확인 대기 ⏳'; cls = 'waiting';
-                } else if (isAvailable) {
-                    badge = '도전 가능'; cls = 'current';
-                    clickAttr = `onclick="BravoApp.startFromAce(${bl.lv})" style="cursor:pointer;"`;
-                } else {
-                    badge = '🔒'; cls = 'locked';
-                }
-
+        // Bravo 액션 영역
+        if (bravoAwaiting) {
+            html += `
+                <div class="ace-action">
+                    <div class="ace-waiting">
+                        <div style="font-size:48px; margin-bottom:12px;">⏳</div>
+                        <div style="font-size:18px; font-weight:800; color:#FF9800;">Bravo 평가를 기다리고 있어요!</div>
+                        <div style="font-size:14px; color:#999; margin-top:8px;">코치 선생님이 확인하고 있어요.<br>평가가 끝나면 다음 레벨에 도전할 수 있습니다.</div>
+                    </div>
+                </div>`;
+        } else if (aceCompleted && bravoLevel <= 6) {
+            const bravoLs = bravoStatusMap[bravoLevel];
+            const bravoSubmitted = bravoLs && bravoLs.status === 'submitted';
+            if (!bravoSubmitted) {
                 html += `
-                    <div class="ace-level-card ${cls}" ${clickAttr}>
-                        <div class="ace-level-icon" style="background:${bl.color};color:#fff;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;">${bl.lv}</div>
-                        <div class="ace-level-info">
-                            <div class="ace-level-name">${bl.name}</div>
-                            <div class="ace-level-desc">${bl.desc}</div>
-                        </div>
-                        <div class="ace-level-badge ${cls}">${badge}</div>
+                    <div class="ace-action">
+                        <button class="ace-btn ace-btn-primary ace-btn-lg" onclick="BravoApp.startFromAce(${bravoLevel})">
+                            🏆 Bravo Jr ${bravoLevel} 도전하기
+                        </button>
+                        <p class="ace-action-hint">Bravo Jr ${bravoLevel} 테스트를 시작합니다</p>
                     </div>`;
             }
+        } else if (!aceCompleted) {
+            html += `
+                <div class="ace-action">
+                    <div class="ace-waiting">
+                        <div style="font-size:48px; margin-bottom:12px;">🔒</div>
+                        <div style="font-size:18px; font-weight:800; color:#999;">ACE 3를 통과하면 열려요!</div>
+                        <div style="font-size:14px; color:#999; margin-top:8px;">ACE 도전을 먼저 완료해 주세요.</div>
+                    </div>
+                </div>`;
         }
 
-        html += `</div>`;
+        // Bravo 레벨 카드
+        const bravoLevels = [
+            { lv: 1, name: 'Bravo Jr 1', desc: 'Level aa · 파닉스 마스터', color: '#F59E0B' },
+            { lv: 2, name: 'Bravo Jr 2', desc: 'Level a · 소리블록 기초', color: '#FB923C' },
+            { lv: 3, name: 'Bravo Jr 3', desc: 'Level b · 소리블록 확장', color: '#EA580C' },
+            { lv: 4, name: 'Bravo Jr 4', desc: 'Level C · 기초 문장 패턴', color: '#10B981' },
+            { lv: 5, name: 'Bravo Jr 5', desc: 'Level D · 복합 문장 패턴', color: '#059669' },
+            { lv: 6, name: 'Bravo Jr 6', desc: 'Level E · 스토리 & 표현', color: '#047857' },
+        ];
+
+        html += `<div class="ace-levels">`;
+
+        for (const bl of bravoLevels) {
+            const ls = bravoStatusMap[bl.lv];
+            const isPassed = aceCompleted && bl.lv < bravoLevel;
+            const isSubmitted = aceCompleted && ls && ls.status === 'submitted';
+            const isAvailable = aceCompleted && bl.lv === bravoLevel && !isSubmitted;
+
+            let badge, cls, clickAttr = '';
+            if (isPassed) {
+                badge = 'PASS ✅'; cls = 'passed';
+            } else if (isSubmitted) {
+                badge = '확인 대기 ⏳'; cls = 'waiting';
+            } else if (isAvailable) {
+                badge = '도전 가능'; cls = 'current';
+                clickAttr = `onclick="BravoApp.startFromAce(${bl.lv})" style="cursor:pointer;"`;
+            } else {
+                badge = '🔒'; cls = 'locked';
+            }
+
+            html += `
+                <div class="ace-level-card ${cls}" ${clickAttr}>
+                    <div class="ace-level-icon" style="background:${bl.color};color:#fff;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;">${bl.lv}</div>
+                    <div class="ace-level-info">
+                        <div class="ace-level-name">${bl.name}</div>
+                        <div class="ace-level-desc">${bl.desc}</div>
+                    </div>
+                    <div class="ace-level-badge ${cls}">${badge}</div>
+                </div>`;
+        }
+
+        html += `</div></div>`; // close ace-levels + tab-bravo
 
         html += `
             <div style="text-align:center; margin-top:20px;">
@@ -230,7 +278,21 @@ const AceStudentApp = (() => {
 
         container.innerHTML = html;
 
-        // 이벤트 바인딩
+        // 토글 이벤트 바인딩
+        const tabContainer = document.getElementById('ace-section-tabs');
+        if (tabContainer) {
+            tabContainer.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeSection = btn.dataset.tab;
+                    tabContainer.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById('tab-ace').classList.toggle('active', activeSection === 'ace');
+                    document.getElementById('tab-bravo').classList.toggle('active', activeSection === 'bravo');
+                });
+            });
+        }
+
+        // ACE 시작 버튼
         const btnStart = document.getElementById('btn-start-ace');
         if (btnStart) btnStart.addEventListener('click', startSession);
     }

@@ -15,8 +15,8 @@ header('Expires: 0');
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/common.css?v=20260221">
     <link rel="stylesheet" href="/css/toast.css?v=20260221">
-    <link rel="stylesheet" href="/css/ace.css?v=20260221a">
-    <link rel="stylesheet" href="/css/bravo.css?v=20260222">
+    <link rel="stylesheet" href="/css/ace.css?v=20260224e">
+    <link rel="stylesheet" href="/css/bravo.css?v=20260224d">
 </head>
 <body class="ace-page">
     <div class="app-container" id="app">
@@ -31,7 +31,7 @@ header('Expires: 0');
     <script src="/js/toast.js?v=20260221"></script>
     <script src="/js/common.js?v=20260221"></script>
     <script src="/js/ace-recorder.js?v=20260221a"></script>
-    <script src="/js/bravo-student.js?v=20260222"></script>
-    <script src="/js/ace-student.js?v=20260222"></script>
+    <script src="/js/bravo-student.js?v=20260224d"></script>
+    <script src="/js/ace-student.js?v=20260224e"></script>
 </body>
 </html>
