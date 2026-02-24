@@ -1975,8 +1975,7 @@ const CoachApp = (() => {
         const container = document.getElementById('msg-content');
         container.innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="display:inline-block;"></div></div>';
 
-        const classFilter = currentClassId ? `&class_id=${currentClassId}` : '';
-        const result = await App.get('/api/coach.php?action=msg_threads' + classFilter);
+        const result = await App.get('/api/coach.php?action=msg_threads');
         if (!result.success) {
             container.innerHTML = '<div style="text-align:center; padding:40px; color:#F44336;">데이터를 불러올 수 없습니다</div>';
             return;
