@@ -875,6 +875,20 @@
     margin-top: 3px;
 }
 
+/* BRAVO 현황 */
+.bravo-summary-header {
+    background: linear-gradient(135deg, #FFF8E1, #FFECB3);
+}
+.bravo-summary-header .ace-summary-title {
+    color: #E65100;
+}
+.bravo-summary-header .ace-summary-sub {
+    color: #FF9800;
+}
+.bravo-summary .bravo-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+}
+
 /* 필터 칩 */
 .ace-filter-chips {
     display: flex;

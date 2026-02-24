@@ -1387,6 +1387,34 @@ const CoachApp = (() => {
             </div>
         </div>`;
 
+        // ── BRAVO 현황 ──
+        const bs = bravoResult.success ? (bravoResult.summary || {}) : {};
+        const bravoTotal = bs.total_students || 0;
+        const bravoStats = [
+            { icon: '🟡', label: 'Jr 1', value: bs.jr1_pass || 0, color: '#F59E0B' },
+            { icon: '🟡', label: 'Jr 2', value: bs.jr2_pass || 0, color: '#FB923C' },
+            { icon: '🟡', label: 'Jr 3', value: bs.jr3_pass || 0, color: '#EA580C' },
+            { icon: '🟢', label: 'Jr 4', value: bs.jr4_pass || 0, color: '#10B981' },
+            { icon: '🟢', label: 'Jr 5', value: bs.jr5_pass || 0, color: '#059669' },
+            { icon: '🟢', label: 'Jr 6', value: bs.jr6_pass || 0, color: '#047857' },
+        ];
+
+        html += `<div class="ace-summary bravo-summary">
+            <div class="ace-summary-header bravo-summary-header">
+                <div class="ace-summary-title">BRAVO 현황</div>
+                <div class="ace-summary-sub">ACE 완료 ${bravoTotal}명</div>
+            </div>
+            <div class="ace-summary-grid bravo-summary-grid">
+                ${bravoStats.map(s => `
+                    <div class="ace-summary-cell">
+                        <div class="ace-summary-icon">${s.icon}</div>
+                        <div class="ace-summary-value" style="color:${s.value > 0 ? s.color : '#E0E0E0'}">${s.value}<span class="ace-summary-total">/${bravoTotal}</span></div>
+                        <div class="ace-summary-label">${s.label}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+
         // ── 평가 대기 리스트 ──
         const allPending = [
             ...pending.map(p => ({ ...p, type: 'eval' })),
