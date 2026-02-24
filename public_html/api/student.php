@@ -99,33 +99,17 @@ switch ($action) {
         $stmt = $db->prepare('UPDATE junior_device_fingerprints SET last_used_at = NOW() WHERE fingerprint = ?');
         $stmt->execute([$fingerprint]);
 
-        if (count($students) === 1) {
-            // 단일 학생 → 자동 로그인
-            $s = $students[0];
-            loginStudent($s['id'], $s['name'], $s['class_id'], $s['class_name']);
-            jsonSuccess([
-                'found' => true,
-                'auto_login' => true,
-                'student' => [
-                    'id'         => $s['id'],
-                    'name'       => $s['name'],
-                    'class_id'   => $s['class_id'],
-                    'class_name' => $s['class_name'],
-                ]
-            ]);
-        } else {
-            // 형제 → 선택 필요
-            jsonSuccess([
-                'found' => true,
-                'auto_login' => false,
-                'students' => array_map(fn($s) => [
-                    'id'         => $s['id'],
-                    'name'       => $s['name'],
-                    'class_id'   => $s['class_id'],
-                    'class_name' => $s['class_name'],
-                ], $students)
-            ]);
-        }
+        // 항상 학생 선택을 거치도록 (자동 로그인 비활성화)
+        jsonSuccess([
+            'found' => true,
+            'auto_login' => false,
+            'students' => array_map(fn($s) => [
+                'id'         => $s['id'],
+                'name'       => $s['name'],
+                'class_id'   => $s['class_id'],
+                'class_name' => $s['class_name'],
+            ], $students)
+        ]);
         break;
 
     // 형제 선택 (공유 기기)
@@ -501,12 +485,12 @@ switch ($action) {
 
         if (!$student) jsonError('이름이나 번호를 다시 확인해봐!');
 
-        // 핑거프린트 저장 (다음 접속부터 자동 로그인)
+        // 핑거프린트 저장 (다음 접속부터 학생 선택 목록에 표시)
         if ($fingerprint) {
             $stmt = $db->prepare('
                 INSERT INTO junior_device_fingerprints (student_id, fingerprint, device_info, last_used_at)
                 VALUES (?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE last_used_at = NOW()
+                ON DUPLICATE KEY UPDATE student_id = VALUES(student_id), last_used_at = NOW()
             ');
             $stmt->execute([$student['id'], $fingerprint, '{}']);
 
@@ -524,6 +508,23 @@ switch ($action) {
                 'class_name' => $student['class_name'],
             ]
         ], '반가워!');
+        break;
+
+    // 반별 학생 목록 (QR 출석용)
+    case 'class_students':
+        $classId = (int)($_GET['class_id'] ?? 0);
+        if (!$classId) jsonError('반을 선택해 주세요');
+
+        $db = getDB();
+        $stmt = $db->prepare('
+            SELECT s.id, s.name
+            FROM junior_students s
+            JOIN junior_class_students cs ON s.id = cs.student_id AND cs.class_id = ? AND cs.is_active = 1
+            WHERE s.is_active = 1
+            ORDER BY s.name
+        ');
+        $stmt->execute([$classId]);
+        jsonSuccess(['students' => $stmt->fetchAll()]);
         break;
 
     default:

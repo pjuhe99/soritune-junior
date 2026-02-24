@@ -224,19 +224,11 @@ if ($isActive) {
                 <div class="scan-class-grid" id="class-grid"></div>
             </div>
 
-            <!-- Login Form -->
-            <div class="scan-state" id="st-login">
-                <div class="scan-section-title" id="login-class-title">본인 확인</div>
-                <div class="scan-section-desc">이름과 전화번호 뒷자리를 입력해 주세요</div>
-                <div class="scan-field">
-                    <label>이름</label>
-                    <input type="text" id="scan-name" placeholder="이름을 입력하세요" autocomplete="off">
-                </div>
-                <div class="scan-field">
-                    <label>전화번호 뒷 4자리</label>
-                    <input type="tel" id="scan-phone" maxlength="4" placeholder="0000" inputmode="numeric" autocomplete="off">
-                </div>
-                <button class="scan-btn" id="btn-scan-login">출석하기</button>
+            <!-- Student Selection -->
+            <div class="scan-state" id="st-students">
+                <div class="scan-section-title" id="students-class-title">이름을 선택하세요</div>
+                <div class="scan-section-desc">본인 이름을 눌러주세요</div>
+                <div id="student-list"></div>
                 <div style="text-align:center;">
                     <button class="scan-btn-back" id="btn-back-class">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
@@ -283,40 +275,10 @@ if ($isActive) {
             showState('error-js');
         }
 
-        // 1. 핑거프린트 생성
+        // 핑거프린트 생성
         try { fp = await DeviceFingerprint.generate(); } catch(e) {}
 
-        // 2. 이미 로그인된 세션 확인
-        try {
-            const session = await App.get('/api/student.php?action=check_session');
-            if (session.logged_in) {
-                // 형제 확인 (phone_last4 + 성씨)
-                if (await checkSiblingsAndShow()) return;
-                await recordAttendance();
-                return;
-            }
-        } catch(e) {}
-
-        // 3. 핑거프린트 자동 로그인 시도
-        if (fp) {
-            try {
-                const autoResult = await App.post('/api/student.php?action=auto_login', { fingerprint: fp });
-                if (autoResult.success && autoResult.found) {
-                    if (autoResult.auto_login) {
-                        // 단일 학생 → 형제 확인 후 출석
-                        if (await checkSiblingsAndShow()) return;
-                        await recordAttendance();
-                        return;
-                    } else if (autoResult.students && autoResult.students.length > 1) {
-                        // 복수 디바이스 매칭 → 선택 화면
-                        showSiblings(autoResult.students);
-                        return;
-                    }
-                }
-            } catch(e) {}
-        }
-
-        // 4. 자동 로그인 실패 → 반 선택
+        // 항상 반 선택부터 시작
         showClassGrid();
 
         // ── 출석 기록 ──
@@ -411,68 +373,68 @@ if ($isActive) {
 
             // 클릭 이벤트
             grid.querySelectorAll('.scan-class-item').forEach(item => {
-                item.addEventListener('click', () => {
+                item.addEventListener('click', async () => {
                     selectedClassId = parseInt(item.dataset.classId);
                     const className = item.dataset.className;
-                    document.getElementById('login-class-title').textContent = className + ' 반 본인 확인';
-                    document.getElementById('scan-name').value = '';
-                    document.getElementById('scan-phone').value = '';
-                    showState('login');
-                    setTimeout(() => document.getElementById('scan-name').focus(), 300);
+                    document.getElementById('students-class-title').textContent = className + ' 반';
+                    showState('loading');
+                    try {
+                        const r = await App.get('/api/student.php?action=class_students&class_id=' + selectedClassId);
+                        if (r.success && r.students && r.students.length > 0) {
+                            showStudentList(r.students, selectedClassId);
+                        } else {
+                            showError('😅', '학생 없음', '이 반에 등록된 학생이 없습니다');
+                        }
+                    } catch(e) {
+                        showError('❌', '네트워크 오류', '인터넷 연결을 확인해 주세요');
+                    }
                 });
             });
 
             showState('class');
         }
 
-        // ── 로그인 ──
-        const btnLogin = document.getElementById('btn-scan-login');
-        const nameInput = document.getElementById('scan-name');
-        const phoneInput = document.getElementById('scan-phone');
+        // ── 학생 목록 표시 ──
+        function showStudentList(students, classId) {
+            const list = document.getElementById('student-list');
+            list.innerHTML = students.map(s => `
+                <div class="scan-sibling-item" data-student-id="${s.id}" data-class-id="${classId}">
+                    <div class="scan-sibling-avatar">${s.name.charAt(0)}</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:15px; color:#333;">${s.name}</div>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+            `).join('');
 
-        btnLogin.addEventListener('click', doLogin);
-        phoneInput.addEventListener('keyup', e => { if (e.key === 'Enter') doLogin(); });
+            list.querySelectorAll('.scan-sibling-item').forEach(item => {
+                item.addEventListener('click', async () => {
+                    const studentId = parseInt(item.dataset.studentId);
+                    const cId = parseInt(item.dataset.classId);
+                    showState('loading');
+                    try {
+                        const result = await App.post('/api/student.php?action=qr_login', {
+                            class_id: cId,
+                            student_id: studentId,
+                            fingerprint: fp
+                        });
+                        if (result.success) {
+                            await recordAttendance();
+                        } else {
+                            showError('⚠️', '오류', result.error || '처리에 실패했습니다');
+                        }
+                    } catch(e) {
+                        showError('❌', '네트워크 오류', '인터넷 연결을 확인해 주세요');
+                    }
+                });
+            });
+
+            showState('students');
+        }
 
         document.getElementById('btn-back-class').addEventListener('click', () => {
             showClassGrid();
         });
-
-        async function doLogin() {
-            const name = nameInput.value.trim();
-            const phone = phoneInput.value.trim();
-
-            if (!name) { Toast.warning('이름을 입력해 주세요'); nameInput.focus(); return; }
-            if (!phone || phone.length !== 4 || !/^\d{4}$/.test(phone)) {
-                Toast.warning('전화번호 뒷 4자리를 정확히 입력해 주세요');
-                phoneInput.focus();
-                return;
-            }
-
-            btnLogin.disabled = true;
-            btnLogin.textContent = '처리 중...';
-
-            try {
-                const result = await App.post('/api/student.php?action=secure_login', {
-                    class_id: selectedClassId,
-                    name: name,
-                    phone_last4: phone,
-                    fingerprint: fp
-                });
-
-                if (result.success) {
-                    Toast.success('본인 확인 완료!');
-                    await recordAttendance();
-                } else {
-                    Toast.error(result.error || '로그인에 실패했습니다');
-                    btnLogin.disabled = false;
-                    btnLogin.textContent = '출석하기';
-                }
-            } catch(e) {
-                Toast.error('네트워크 오류가 발생했습니다');
-                btnLogin.disabled = false;
-                btnLogin.textContent = '출석하기';
-            }
-        }
     })();
     </script>
 <?php endif; ?>
