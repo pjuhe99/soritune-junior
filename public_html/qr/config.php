@@ -7,7 +7,7 @@ require_once dirname(__DIR__) . '/config.php';
 require_once __DIR__ . '/lib/QRRenderer.php';
 
 // QR 모듈 상수
-define('QR_BASE_URL', 'https://j.soritune.com/qr/scan.php');
+define('QR_BASE_URL', 'https://' . $_SERVER['HTTP_HOST'] . '/qr/scan.php');
 define('QR_CODE_LENGTH', 24);  // bin2hex(random_bytes(12)) = 24자 hex
 define('QR_DEFAULT_EXPIRY_MINUTES', 120);
 
