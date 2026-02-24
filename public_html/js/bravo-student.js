@@ -211,7 +211,7 @@ const BravoApp = (() => {
                     const ans = answers[i.id];
                     if (!ans) return false;
                     const d = i.item_data;
-                    return Object.keys(ans).length >= d.blanks && d.a.every((a, j) => (ans[j] || ans[String(j)]) === a);
+                    return Object.keys(ans).length >= d.blanks;
                 });
             }
             return false;
