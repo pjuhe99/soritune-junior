@@ -703,17 +703,8 @@ const CoachApp = (() => {
                 <button class="btn btn-danger" id="btn-close-qr" style="margin-top:16px;">세션 종료</button>
             </div>
 
-            <div style="margin-top:20px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <div style="font-size:16px; font-weight:700;">출석 현황</div>
-                    <div id="attendance-counter" style="font-size:15px; font-weight:700; color:#2196F3;"></div>
-                </div>
-                <div style="margin-bottom:12px;">
-                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:#555; user-select:none;">
-                        <input type="checkbox" id="toggle-full-list" style="width:16px; height:16px; accent-color:#2196F3;">
-                        전체 학생 리스트 보기 (미출석 포함)
-                    </label>
-                </div>
+            <div style="margin-top:20px; text-align:left;">
+                <div style="font-size:16px; font-weight:700; margin-bottom:12px;">출석 현황</div>
                 <div id="attendance-list"></div>
             </div>
         `;
@@ -735,12 +726,6 @@ const CoachApp = (() => {
         }
         updateTimer();
         const timerInterval = setInterval(updateTimer, 1000);
-
-        // 전체 리스트 토글
-        document.getElementById('toggle-full-list').addEventListener('change', (e) => {
-            showFullList = e.target.checked;
-            loadQRFullStatus();
-        });
 
         // 출석 현황 로드 + 자동 갱신
         loadQRFullStatus();
@@ -765,109 +750,57 @@ const CoachApp = (() => {
         const result = await App.get(`/api/coach.php?action=qr_full_status&session_id=${currentSessionId}&class_id=${currentClassId}`);
         if (!result.success) return;
 
-        const counter = document.getElementById('attendance-counter');
         const list = document.getElementById('attendance-list');
-        if (!counter || !list) return;
+        if (!list) return;
 
-        counter.textContent = `${result.attended} / ${result.total}명 출석`;
+        const currentClassName = classes.find(c => c.id == currentClassId)?.display_name || '';
 
-        if (showFullList) {
-            // 전체 학생 리스트 (출석 + 미출석)
-            let html = result.students.map(s => {
-                if (s.attended) {
-                    const time = s.scanned_at ? new Date(s.scanned_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
-                    return `
-                        <div class="attendee-item" style="background:#E8F5E9; border-radius:10px; padding:10px 12px; margin-bottom:6px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:16px;">✅</span>
-                                <span style="font-weight:600; font-size:14px; color:#333; flex:1;">${s.name}</span>
-                                <span style="font-size:11px; color:#999; flex-shrink:0;">${time}</span>
-                                <button onclick="CoachApp.manualAttendance(${currentSessionId}, ${s.id}, 'remove')"
-                                    style="background:#FFEBEE; color:#E53935; border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; flex-shrink:0;">
-                                    제거
-                                </button>
-                            </div>
-                            <div style="margin-top:6px; padding-left:32px;">
-                                ${s.posture_given
-                                    ? `<span style="background:#E8E8E8; color:#999; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; display:inline-block;">지급완료</span>`
-                                    : `<button onclick="CoachApp.givePostureCard(${s.id})"
-                                        style="background:#9C27B0; color:#fff; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 1px 3px rgba(0,0,0,.15);">
-                                        바른자세왕 카드 지급하기
-                                    </button>`}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    return `
-                        <div class="attendee-item" style="background:#F5F5F5; border-radius:10px; padding:10px 12px; margin-bottom:4px; display:flex; align-items:center; opacity:0.7;">
-                            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
-                                <span style="font-size:16px; color:#BDBDBD;">⬜</span>
-                                <span style="font-weight:500; font-size:14px; color:#999;">${s.name}</span>
-                            </div>
-                            <button onclick="CoachApp.manualAttendance(${currentSessionId}, ${s.id}, 'add')"
-                                style="background:#E3F2FD; color:#1565C0; border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; flex-shrink:0;">
-                                추가
-                            </button>
-                        </div>
-                    `;
-                }
-            }).join('');
+        // 출석자만 표시
+        const attended = result.students.filter(s => s.attended);
 
-            // 타반 출석자
-            if (result.other_class && result.other_class.length > 0) {
-                html += `<div style="margin-top:14px; padding-top:10px; border-top:1px solid #eee;">
-                    <div style="font-size:12px; font-weight:600; color:#1565C0; margin-bottom:6px;">타반 출석</div>`;
-                html += result.other_class.map(a => {
-                    const time = a.scanned_at ? new Date(a.scanned_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
-                    return `
-                        <div style="background:#E3F2FD; border-radius:10px; padding:10px 12px; margin-bottom:6px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:16px;">🔵</span>
-                                <span style="font-weight:600; font-size:14px; color:#333;">${a.student_name}</span>
-                                <span style="background:#BBDEFB; color:#1565C0; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600;">${a.home_class_name || '타반'}</span>
-                                <span style="font-size:11px; color:#999; flex:1; text-align:right;">${time}</span>
-                                <button onclick="CoachApp.manualAttendance(${currentSessionId}, ${a.student_id}, 'remove')"
-                                    style="background:#FFEBEE; color:#E53935; border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; flex-shrink:0;">
-                                    제거
-                                </button>
-                            </div>
-                            <div style="margin-top:6px; padding-left:32px;">
-                                ${a.posture_given
-                                    ? `<span style="background:#E8E8E8; color:#999; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; display:inline-block;">지급완료</span>`
-                                    : `<button onclick="CoachApp.givePostureCard(${a.student_id})"
-                                        style="background:#9C27B0; color:#fff; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 1px 3px rgba(0,0,0,.15);">
-                                        바른자세왕 카드 지급하기
-                                    </button>`}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                html += '</div>';
-            }
+        if (attended.length === 0 && (!result.other_class || result.other_class.length === 0)) {
+            list.innerHTML = '<div style="text-align:center; color:#9E9E9E; padding:20px 0; font-size:14px;">아직 출석자가 없습니다</div>';
+            return;
+        }
 
-            list.innerHTML = html;
-        } else {
-            // 출석자만 표시
-            const attended = result.students.filter(s => s.attended);
+        let html = attended.map(s => {
+            const time = s.scanned_at ? new Date(s.scanned_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
+            return `
+                <div style="background:#E8F5E9; border-radius:10px; padding:10px 12px; margin-bottom:6px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:16px;">🟢</span>
+                        <span style="font-weight:600; font-size:14px; color:#333;">${s.name}</span>
+                        <span style="background:#C8E6C9; color:#2E7D32; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600;">${currentClassName}</span>
+                        <span style="font-size:11px; color:#999; flex:1; text-align:right;">${time}</span>
+                    </div>
+                    <div style="margin-top:6px; padding-left:32px;">
+                        ${s.posture_given
+                            ? `<span style="background:#E8E8E8; color:#999; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; display:inline-block;">지급완료</span>`
+                            : `<button onclick="CoachApp.givePostureCard(${s.id})"
+                                style="background:#9C27B0; color:#fff; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 1px 3px rgba(0,0,0,.15);">
+                                바른자세왕 카드 지급하기
+                            </button>`}
+                    </div>
+                </div>
+            `;
+        }).join('');
 
-            if (attended.length === 0 && (!result.other_class || result.other_class.length === 0)) {
-                list.innerHTML = '<div style="text-align:center; color:#9E9E9E; padding:20px 0; font-size:14px;">아직 출석자가 없습니다</div>';
-                return;
-            }
-
-            let html = attended.map(s => {
-                const time = s.scanned_at ? new Date(s.scanned_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
+        // 타반
+        if (result.other_class && result.other_class.length > 0) {
+            html += result.other_class.map(a => {
+                const time = a.scanned_at ? new Date(a.scanned_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
                 return `
-                    <div style="background:#E8F5E9; border-radius:10px; padding:10px 12px; margin-bottom:6px;">
+                    <div style="background:#E3F2FD; border-radius:10px; padding:10px 12px; margin-bottom:6px;">
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:16px;">✅</span>
-                            <span style="font-weight:600; font-size:14px; color:#333; flex:1;">${s.name}</span>
-                            <span style="font-size:11px; color:#999;">${time}</span>
+                            <span style="font-size:16px;">🔵</span>
+                            <span style="font-weight:600; font-size:14px; color:#333;">${a.student_name}</span>
+                            <span style="background:#BBDEFB; color:#1565C0; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600;">${a.home_class_name || '타반'}</span>
+                            <span style="font-size:11px; color:#999; flex:1; text-align:right;">${time}</span>
                         </div>
                         <div style="margin-top:6px; padding-left:32px;">
-                            ${s.posture_given
+                            ${a.posture_given
                                 ? `<span style="background:#E8E8E8; color:#999; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; display:inline-block;">지급완료</span>`
-                                : `<button onclick="CoachApp.givePostureCard(${s.id})"
+                                : `<button onclick="CoachApp.givePostureCard(${a.student_id})"
                                     style="background:#9C27B0; color:#fff; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 1px 3px rgba(0,0,0,.15);">
                                     바른자세왕 카드 지급하기
                                 </button>`}
@@ -875,34 +808,9 @@ const CoachApp = (() => {
                     </div>
                 `;
             }).join('');
-
-            // 타반
-            if (result.other_class && result.other_class.length > 0) {
-                html += result.other_class.map(a => {
-                    const time = a.scanned_at ? new Date(a.scanned_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
-                    return `
-                        <div style="background:#E3F2FD; border-radius:10px; padding:10px 12px; margin-bottom:6px;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span style="font-size:16px;">🔵</span>
-                                <span style="font-weight:600; font-size:14px; color:#333;">${a.student_name}</span>
-                                <span style="background:#BBDEFB; color:#1565C0; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600;">${a.home_class_name || '타반'}</span>
-                                <span style="font-size:11px; color:#999; flex:1; text-align:right;">${time}</span>
-                            </div>
-                            <div style="margin-top:6px; padding-left:32px;">
-                                ${a.posture_given
-                                    ? `<span style="background:#E8E8E8; color:#999; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; display:inline-block;">지급완료</span>`
-                                    : `<button onclick="CoachApp.givePostureCard(${a.student_id})"
-                                        style="background:#9C27B0; color:#fff; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 1px 3px rgba(0,0,0,.15);">
-                                        바른자세왕 카드 지급하기
-                                    </button>`}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            list.innerHTML = html;
         }
+
+        list.innerHTML = html;
     }
 
     async function manualAttendance(sessionId, studentId, type) {
