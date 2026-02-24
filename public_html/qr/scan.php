@@ -149,6 +149,33 @@ if ($isActive) {
         .scan-error-icon { font-size:56px; margin-bottom:12px; }
         .scan-error .scan-btn { display:inline-block; text-decoration:none; text-align:center; width:auto; padding:14px 40px; }
 
+        /* Student grid */
+        .scan-student-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+        .scan-student-btn {
+            padding:12px 4px; border:1.5px solid #F0F0F0; border-radius:12px;
+            background:#fff; cursor:pointer; transition:all .15s; text-align:center;
+            -webkit-tap-highlight-color:transparent;
+        }
+        .scan-student-btn:active { background:#FFF3E0; border-color:#FF6B1A; transform:scale(.96); }
+        .scan-student-name { font-size:14px; font-weight:700; color:#333; }
+
+        /* Confirm overlay */
+        .scan-confirm-overlay {
+            display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
+            z-index:100; align-items:center; justify-content:center; padding:20px;
+        }
+        .scan-confirm-overlay.active { display:flex; }
+        .scan-confirm-box {
+            background:#fff; border-radius:20px; padding:28px 24px; max-width:320px;
+            width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,.2);
+        }
+        .scan-confirm-name { font-size:20px; font-weight:800; color:#333; margin-bottom:6px; }
+        .scan-confirm-desc { font-size:14px; color:#999; margin-bottom:22px; }
+        .scan-confirm-btns { display:flex; gap:10px; }
+        .scan-confirm-btns button { flex:1; padding:13px; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
+        .scan-confirm-no { background:#F0F0F0; color:#777; }
+        .scan-confirm-yes { background:linear-gradient(135deg,#FF6B1A,#FF5722); color:#fff; }
+
         /* Loading */
         .scan-loading { text-align:center; padding:40px 0; }
         .scan-loading-spinner {
@@ -242,7 +269,18 @@ if ($isActive) {
                     <div class="scan-success-icon">✅</div>
                     <div class="scan-success-title" id="success-name">출석 완료!</div>
                     <div class="scan-success-desc" id="success-desc">출석이 기록되었습니다</div>
-                    <a href="/" class="scan-btn">마이페이지 보기</a>
+                    <a href="/" class="scan-btn">홈으로</a>
+                </div>
+            </div>
+            <!-- Confirm overlay -->
+            <div class="scan-confirm-overlay" id="confirm-overlay">
+                <div class="scan-confirm-box">
+                    <div class="scan-confirm-name" id="confirm-name"></div>
+                    <div class="scan-confirm-desc" id="confirm-desc"></div>
+                    <div class="scan-confirm-btns">
+                        <button class="scan-confirm-no" id="confirm-no">아니오</button>
+                        <button class="scan-confirm-yes" id="confirm-yes">네</button>
+                    </div>
                 </div>
             </div>
 <?php endif; ?>
@@ -280,12 +318,13 @@ if ($isActive) {
         // 항상 반 선택부터 시작
         showClassGrid();
 
-        // ── 출석 기록 ──
-        async function recordAttendance() {
+        // ── 출석 기록 (세션 불필요, student_id 직접 전달) ──
+        async function recordAttendance(studentId) {
             showState('loading');
             try {
                 const result = await App.post('/api/attendance.php?action=record', {
                     session_code: SESSION_CODE,
+                    student_id: studentId,
                     fingerprint: fp
                 });
                 if (result.success) {
@@ -393,42 +432,54 @@ if ($isActive) {
             showState('class');
         }
 
-        // ── 학생 목록 표시 ──
+        // ── 학생 목록 표시 (3열 그리드) ──
         function showStudentList(students, classId) {
             const list = document.getElementById('student-list');
-            list.innerHTML = students.map(s => `
-                <div class="scan-sibling-item" data-student-id="${s.id}" data-class-id="${classId}">
-                    <div class="scan-sibling-avatar">${s.name.charAt(0)}</div>
-                    <div style="flex:1;">
-                        <div style="font-weight:700; font-size:15px; color:#333;">${s.name}</div>
-                    </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-                </div>
-            `).join('');
+            list.innerHTML = '<div class="scan-student-grid">' + students.map(s =>
+                `<div class="scan-student-btn" data-student-id="${s.id}" data-student-name="${s.name}" data-class-id="${classId}">
+                    <div class="scan-student-name">${s.name}</div>
+                </div>`
+            ).join('') + '</div>';
 
-            list.querySelectorAll('.scan-sibling-item').forEach(item => {
-                item.addEventListener('click', async () => {
+            list.querySelectorAll('.scan-student-btn').forEach(item => {
+                item.addEventListener('click', () => {
                     const studentId = parseInt(item.dataset.studentId);
+                    const studentName = item.dataset.studentName;
                     const cId = parseInt(item.dataset.classId);
-                    showState('loading');
-                    try {
-                        const result = await App.post('/api/student.php?action=qr_login', {
-                            class_id: cId,
-                            student_id: studentId,
-                            fingerprint: fp
-                        });
-                        if (result.success) {
-                            await recordAttendance();
-                        } else {
-                            showError('⚠️', '오류', result.error || '처리에 실패했습니다');
-                        }
-                    } catch(e) {
-                        showError('❌', '네트워크 오류', '인터넷 연결을 확인해 주세요');
-                    }
+                    showConfirm(studentName, studentId, cId);
                 });
             });
 
             showState('students');
+        }
+
+        // ── 확인 팝업 ──
+        function hasJongseong(ch) {
+            const code = ch.charCodeAt(0);
+            if (code < 0xAC00 || code > 0xD7A3) return false;
+            return (code - 0xAC00) % 28 !== 0;
+        }
+
+        function showConfirm(name, studentId, classId) {
+            document.getElementById('confirm-name').textContent = name;
+            const particle = hasJongseong(name[name.length - 1]) ? '으로' : '로';
+            document.getElementById('confirm-desc').textContent = particle + ' 출석할까요?';
+            const overlay = document.getElementById('confirm-overlay');
+            overlay.classList.add('active');
+
+            const yesBtn = document.getElementById('confirm-yes');
+            const noBtn = document.getElementById('confirm-no');
+
+            const newYes = yesBtn.cloneNode(true);
+            const newNo = noBtn.cloneNode(true);
+            yesBtn.replaceWith(newYes);
+            noBtn.replaceWith(newNo);
+
+            newNo.addEventListener('click', () => overlay.classList.remove('active'));
+            newYes.addEventListener('click', async () => {
+                overlay.classList.remove('active');
+                await recordAttendance(studentId);
+            });
         }
 
         document.getElementById('btn-back-class').addEventListener('click', () => {

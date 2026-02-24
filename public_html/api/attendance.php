@@ -19,16 +19,27 @@ switch ($action) {
         $input = getJsonInput();
         $sessionCode = trim($input['session_code'] ?? '');
         $fingerprint = trim($input['fingerprint'] ?? '');
+        $directStudentId = (int)($input['student_id'] ?? 0);
 
         if (!$sessionCode) jsonError('세션 코드가 필요합니다');
 
-        // 학생 세션 확인
-        $session = getStudentSession();
-        if (!$session) {
-            jsonError('먼저 로그인해줘!', 401);
+        // QR 스캔에서 직접 student_id를 전달하거나, 기존 세션에서 가져오기
+        if ($directStudentId) {
+            $db = getDB();
+            $stmt = $db->prepare('SELECT id, name FROM junior_students WHERE id = ? AND is_active = 1');
+            $stmt->execute([$directStudentId]);
+            $directStudent = $stmt->fetch();
+            if (!$directStudent) jsonError('학생 정보를 찾을 수 없습니다');
+            $studentId = $directStudent['id'];
+            $studentName = $directStudent['name'];
+        } else {
+            $session = getStudentSession();
+            if (!$session) {
+                jsonError('먼저 로그인해줘!', 401);
+            }
+            $studentId = $session['student_id'];
+            $studentName = $session['student_name'];
         }
-
-        $studentId = $session['student_id'];
 
         // QR 세션 검증
         $qrSession = verifyQRSession($sessionCode);
@@ -44,7 +55,7 @@ switch ($action) {
         ');
         $stmt->execute([$qrSession['id'], $studentId]);
         if ($stmt->fetch()) {
-            jsonSuccess(['already' => true, 'student_name' => $session['student_name']], '이미 출석했어!');
+            jsonSuccess(['already' => true, 'student_name' => $studentName], '이미 출석했어!');
             break;
         }
 
@@ -141,7 +152,7 @@ switch ($action) {
         }
 
         $responseData = [
-            'student_name'  => $session['student_name'],
+            'student_name'  => $studentName,
             'is_home_class' => $isHomeClass,
             'already'       => false,
         ];

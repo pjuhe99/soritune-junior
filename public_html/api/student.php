@@ -36,26 +36,7 @@ switch ($action) {
 
         if (!$student) jsonError('🔧 잠깐 문제가 생겼어. 다시 해보자!');
 
-        // 디바이스 핑거프린트 저장
-        if ($fingerprint) {
-            $stmt = $db->prepare('
-                INSERT INTO junior_device_fingerprints (student_id, fingerprint, device_info, last_used_at)
-                VALUES (?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE last_used_at = NOW()
-            ');
-            $deviceInfo = json_encode($input['device_info'] ?? [], JSON_UNESCAPED_UNICODE);
-            $stmt->execute([$studentId, $fingerprint, $deviceInfo]);
-
-            // 공유 디바이스에도 등록
-            $stmt = $db->prepare('
-                INSERT INTO junior_shared_devices (fingerprint, student_id, is_active)
-                VALUES (?, ?, 1)
-                ON DUPLICATE KEY UPDATE is_active = 1
-            ');
-            $stmt->execute([$fingerprint, $studentId]);
-        }
-
-        // 세션 로그인
+        // QR 출석용 임시 세션만 생성 (핑거프린트 저장 안 함)
         loginStudent($student['id'], $student['name'], $student['class_id'], $student['class_name']);
 
         jsonSuccess([
