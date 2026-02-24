@@ -1328,6 +1328,7 @@ const CoachApp = (() => {
     // ============================================
     let acePlayingAudio = null;
     let aceTemplates = null;
+    let bravoTemplates = null;
 
     let aceFilter = 'all';
     const BRAVO_LEVEL_NAMES = {
@@ -1767,10 +1768,18 @@ const CoachApp = (() => {
         const container = document.getElementById('ace-content');
         container.innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner"></div></div>';
 
-        const result = await App.get('/api/bravo.php?action=coach_student_detail&student_id=' + studentId);
+        const [result, tmplResult] = await Promise.all([
+            App.get('/api/bravo.php?action=coach_student_detail&student_id=' + studentId),
+            bravoTemplates ? Promise.resolve({ success: true, templates: bravoTemplates }) : App.get('/api/bravo.php?action=comment_templates'),
+        ]);
+
         if (!result.success) {
             container.innerHTML = '<div style="text-align:center; padding:40px; color:#F44336;">' + esc(result.error || '오류') + '</div>';
             return;
+        }
+
+        if (tmplResult.success && tmplResult.templates) {
+            bravoTemplates = tmplResult.templates;
         }
 
         const { student, submissions, recordings, answers } = result;
@@ -1928,14 +1937,44 @@ const CoachApp = (() => {
                 html += `<div class="ace-eval-form" id="bravo-form-${subId}">
                     <div class="ace-eval-form-title">확인</div>
                     <div class="ace-eval-result-btns">
-                        <button class="ace-result-btn pass" onclick="CoachApp.confirmBravo(${subId}, 'pass')">
+                        <button class="ace-result-btn pass" data-result="pass" onclick="CoachApp.selectBravoResult(${subId}, 'pass')">
                             ✅ PASS
                         </button>
-                        <button class="ace-result-btn retry" onclick="CoachApp.confirmBravo(${subId}, 'retry')">
+                        <button class="ace-result-btn retry" data-result="retry" onclick="CoachApp.selectBravoResult(${subId}, 'retry')">
                             🔄 재도전
                         </button>
                     </div>
+                    <div class="ace-comment-section hidden" id="bravo-comment-${subId}">
+                        <div class="ace-comment-type-btns">
+                            <button class="ace-comment-type-btn" data-type="excellent" onclick="CoachApp.selectBravoCommentType(${subId}, 'excellent')">🌟 우수</button>
+                            <button class="ace-comment-type-btn" data-type="growing" onclick="CoachApp.selectBravoCommentType(${subId}, 'growing')">🌱 성장</button>
+                            <button class="ace-comment-type-btn" data-type="support" onclick="CoachApp.selectBravoCommentType(${subId}, 'support')">💪 보완</button>
+                        </div>
+                        <div class="ace-template-select hidden" id="bravo-tmpl-${subId}"></div>
+                        <textarea class="ace-comment-text" id="bravo-text-${subId}" placeholder="코멘트를 입력하거나 위에서 템플릿을 선택하세요..." rows="3"></textarea>
+                        <button class="btn btn-primary ace-submit-eval" style="background:#FF9800; width:100%;" onclick="CoachApp.confirmBravo(${subId})">
+                            확인 저장
+                        </button>
+                    </div>
                 </div>`;
+            }
+
+            // ── 확인 완료 상태에서 리포트 링크 표시 ──
+            if (isConfirmed) {
+                html += `<div class="ace-eval-result-info">`;
+                if (sub.comment_text) {
+                    const typeLabels = { excellent: '🌟 우수', growing: '🌱 성장', support: '💪 보완' };
+                    html += `<div class="ace-eval-comment">
+                        <span class="ace-comment-label">${typeLabels[sub.comment_type] || ''}</span>
+                        ${esc(sub.comment_text)}
+                    </div>`;
+                }
+                if (sub.report_token) {
+                    html += `<button class="btn btn-primary ace-send-btn" style="background:#FF9800;" onclick="CoachApp.copyBravoReportLink('${sub.report_token}')">
+                        📋 리포트 링크 복사
+                    </button>`;
+                }
+                html += `</div>`;
             }
 
             html += `</div>`;
@@ -1974,13 +2013,54 @@ const CoachApp = (() => {
         }
     }
 
-    async function confirmBravo(submissionId, result) {
+    function selectBravoResult(subId, result) {
+        const form = document.getElementById('bravo-form-' + subId);
+        if (!form) return;
+        form.querySelectorAll('.ace-result-btn').forEach(b => {
+            b.classList.toggle('selected', b.dataset.result === result);
+        });
+        form.dataset.selectedResult = result;
+        document.getElementById('bravo-comment-' + subId)?.classList.remove('hidden');
+    }
+
+    function selectBravoCommentType(subId, type) {
+        const section = document.getElementById('bravo-comment-' + subId);
+        if (!section) return;
+        section.querySelectorAll('.ace-comment-type-btn').forEach(b => {
+            b.classList.toggle('selected', b.dataset.type === type);
+        });
+        section.dataset.selectedType = type;
+
+        const tmplContainer = document.getElementById('bravo-tmpl-' + subId);
+        const templates = (bravoTemplates || []).filter(t => t.comment_type === type);
+        if (templates.length > 0) {
+            tmplContainer.classList.remove('hidden');
+            tmplContainer.innerHTML = templates.map(t => `
+                <div class="ace-template-item" onclick="document.getElementById('bravo-text-${subId}').value = this.textContent.trim()">
+                    ${esc(t.template_text)}
+                </div>
+            `).join('');
+        }
+    }
+
+    async function confirmBravo(submissionId) {
+        const form = document.getElementById('bravo-form-' + submissionId);
+        if (!form) return;
+        const result = form.dataset.selectedResult;
+        if (!result) { Toast.warning('PASS 또는 재도전을 선택해주세요'); return; }
+
+        const commentSection = document.getElementById('bravo-comment-' + submissionId);
+        const commentType = commentSection?.dataset?.selectedType || null;
+        const commentText = document.getElementById('bravo-text-' + submissionId)?.value?.trim() || null;
+
         const label = result === 'pass' ? 'PASS' : '재도전';
         App.confirm(`${label} 처리하시겠습니까?`, async () => {
             App.showLoading();
             const res = await App.post('/api/bravo.php?action=coach_confirm', {
                 submission_id: submissionId,
                 result: result,
+                comment_type: commentType,
+                comment_text: commentText,
             });
             App.hideLoading();
 
@@ -1991,6 +2071,16 @@ const CoachApp = (() => {
                 Toast.error(res.error || '처리 실패');
             }
         }, { formal: true });
+    }
+
+    function copyBravoReportLink(token) {
+        const url = `${location.origin}/bravo-report/?token=${token}`;
+        try {
+            navigator.clipboard.writeText(url);
+            Toast.success('리포트 링크가 복사되었습니다!');
+        } catch (e) {
+            prompt('리포트 링크:', url);
+        }
     }
 
     // ============================================
@@ -2376,6 +2466,7 @@ const CoachApp = (() => {
         selectCommentType, submitAceEval, copyReportLink,
         // Bravo exports
         openBravoEval, playBravoAudio, confirmBravo,
+        selectBravoResult, selectBravoCommentType, copyBravoReportLink,
         // Homework exports
         showHwHelp, hwNav,
         // Message exports

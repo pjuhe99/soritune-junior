@@ -424,11 +424,20 @@ try {
 
         case 'audio':
             $recordingId = (int)($_GET['id'] ?? 0);
+            $audioToken = trim($_GET['token'] ?? '');
             if (!$recordingId) jsonError('recording id가 필요합니다');
 
             $authorized = false;
 
-            if (!empty($_COOKIE['JUNIOR_ADMIN_SID'])) {
+            // 리포트 토큰 기반 인증
+            if ($audioToken) {
+                $db = getDB();
+                $stmt = $db->prepare('SELECT student_id FROM junior_bravo_submissions WHERE report_token = ?');
+                $stmt->execute([$audioToken]);
+                if ($stmt->fetch()) $authorized = true;
+            }
+
+            if (!$authorized && !empty($_COOKIE['JUNIOR_ADMIN_SID'])) {
                 startAdminSession();
                 if (!empty($_SESSION['admin_id'])) $authorized = true;
             }
@@ -537,6 +546,7 @@ try {
             // 모든 제출
             $stmt = $db->prepare('
                 SELECT id, bravo_level, status, auto_result, coach_result,
+                       comment_type, comment_text, report_token,
                        quiz_correct, quiz_total, block_correct, block_total,
                        submitted_at, confirmed_at
                 FROM junior_bravo_submissions
@@ -598,6 +608,8 @@ try {
             $input = getJsonInput();
             $submissionId = (int)($input['submission_id'] ?? 0);
             $result = $input['result'] ?? '';
+            $commentType = $input['comment_type'] ?? null;
+            $commentText = $input['comment_text'] ?? null;
 
             if (!$submissionId || !in_array($result, ['pass', 'retry'])) {
                 jsonError('submission_id와 result(pass/retry) 필요');
@@ -611,13 +623,17 @@ try {
 
             $db->beginTransaction();
             try {
+                // 리포트 토큰 생성
+                $reportToken = bin2hex(random_bytes(32));
+
                 // 확인 처리
                 $stmt = $db->prepare('
                     UPDATE junior_bravo_submissions
-                    SET status = ?, coach_result = ?, confirmed_by = ?, confirmed_at = NOW()
+                    SET status = ?, coach_result = ?, comment_type = ?, comment_text = ?,
+                        report_token = ?, confirmed_by = ?, confirmed_at = NOW()
                     WHERE id = ?
                 ');
-                $stmt->execute(['confirmed', $result, $admin['admin_id'], $submissionId]);
+                $stmt->execute(['confirmed', $result, $commentType, $commentText, $reportToken, $admin['admin_id'], $submissionId]);
 
                 // PASS면 레벨 업
                 if ($result === 'pass') {
@@ -638,11 +654,118 @@ try {
 
                 jsonSuccess([
                     'message' => "{$levelName}: {$resultText} 처리 완료",
+                    'report_token' => $reportToken,
                 ]);
             } catch (Exception $e) {
                 $db->rollBack();
                 throw $e;
             }
+
+        case 'comment_templates':
+            requireAdmin(['coach', 'admin_teacher']);
+            $db = getDB();
+            $type = $_GET['type'] ?? '';
+
+            if ($type) {
+                $stmt = $db->prepare('SELECT * FROM junior_bravo_comment_templates WHERE comment_type = ? ORDER BY sort_order');
+                $stmt->execute([$type]);
+            } else {
+                $stmt = $db->query('SELECT * FROM junior_bravo_comment_templates ORDER BY comment_type, sort_order');
+            }
+
+            jsonSuccess(['templates' => $stmt->fetchAll()]);
+
+        case 'send_report':
+            if ($method !== 'POST') jsonError('POST required', 405);
+            $admin = requireAdmin(['coach', 'admin_teacher']);
+            $db = getDB();
+
+            $input = getJsonInput();
+            $submissionId = (int)($input['submission_id'] ?? 0);
+            if (!$submissionId) jsonError('submission_id가 필요합니다');
+
+            $stmt = $db->prepare('SELECT id, report_token FROM junior_bravo_submissions WHERE id = ?');
+            $stmt->execute([$submissionId]);
+            $sub = $stmt->fetch();
+            if (!$sub || !$sub['report_token']) jsonError('리포트 토큰이 없습니다');
+
+            $reportUrl = 'https://' . ($_SERVER['HTTP_HOST'] ?? 'j.soritune.com') . '/bravo-report/?token=' . $sub['report_token'];
+
+            jsonSuccess([
+                'report_url' => $reportUrl,
+                'message' => '리포트 URL이 생성되었습니다.',
+            ]);
+
+        // ==========================================
+        // 부모 리포트 API
+        // ==========================================
+
+        case 'report':
+            $token = trim($_GET['token'] ?? '');
+            if (!$token) jsonError('토큰이 필요합니다');
+
+            $db = getDB();
+            $stmt = $db->prepare('
+                SELECT bs.*, s.name as student_name, s.bravo_current_level,
+                       c.display_name as class_name, c.color as class_color,
+                       a.name as coach_name
+                FROM junior_bravo_submissions bs
+                JOIN junior_students s ON bs.student_id = s.id
+                JOIN junior_class_students cs ON cs.student_id = s.id AND cs.is_primary = 1 AND cs.is_active = 1
+                JOIN junior_classes c ON cs.class_id = c.id
+                LEFT JOIN junior_admins a ON bs.confirmed_by = a.id
+                WHERE bs.report_token = ?
+            ');
+            $stmt->execute([$token]);
+            $report = $stmt->fetch();
+            if (!$report) jsonError('유효하지 않은 리포트입니다', 404);
+
+            // 녹음 데이터 (문장/파닉스)
+            $stmt = $db->prepare('
+                SELECT br.id as recording_id, br.item_id,
+                       bi.section_type, bi.item_index, bi.item_data
+                FROM junior_bravo_recordings br
+                JOIN junior_bravo_items bi ON bi.id = br.item_id
+                WHERE br.submission_id = ?
+                ORDER BY bi.section_type, bi.item_index
+            ');
+            $stmt->execute([$report['id']]);
+            $recordings = $stmt->fetchAll();
+            foreach ($recordings as &$rec) {
+                $rec['item_data'] = json_decode($rec['item_data'], true);
+            }
+
+            // 전체 BRAVO 레벨 현황
+            $stmt = $db->prepare('
+                SELECT bravo_level, coach_result, confirmed_at
+                FROM junior_bravo_submissions
+                WHERE student_id = ? AND status = ?
+                ORDER BY bravo_level
+            ');
+            $stmt->execute([$report['student_id'], 'confirmed']);
+            $allEvals = $stmt->fetchAll();
+
+            jsonSuccess([
+                'student_name' => $report['student_name'],
+                'class_name' => $report['class_name'],
+                'class_color' => $report['class_color'],
+                'coach_name' => $report['coach_name'],
+                'bravo_level' => (int)$report['bravo_level'],
+                'result' => $report['coach_result'],
+                'auto_result' => $report['auto_result'],
+                'quiz_correct' => (int)$report['quiz_correct'],
+                'quiz_total' => (int)$report['quiz_total'],
+                'block_correct' => (int)$report['block_correct'],
+                'block_total' => (int)$report['block_total'],
+                'comment_type' => $report['comment_type'],
+                'comment_text' => $report['comment_text'],
+                'confirmed_at' => $report['confirmed_at'],
+                'recordings' => $recordings,
+                'all_evaluations' => $allEvals,
+                'current_level' => $report['bravo_current_level'],
+                'levels_meta' => BRAVO_LEVELS,
+                'token' => $token,
+            ]);
 
         default:
             jsonError('Unknown action: ' . $action, 400);
