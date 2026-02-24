@@ -341,12 +341,23 @@ switch ($action) {
         $stmt->execute([$studentId]);
         $aceReports = $stmt->fetchAll();
 
+        // BRAVO 성장 리포트 (report_token이 있는 confirmed 건)
+        $stmt = $db->prepare('
+            SELECT bravo_level, coach_result, report_token, confirmed_at
+            FROM junior_bravo_submissions
+            WHERE student_id = ? AND status = ? AND report_token IS NOT NULL
+            ORDER BY bravo_level, created_at DESC
+        ');
+        $stmt->execute([$studentId, 'confirmed']);
+        $bravoReports = $stmt->fetchAll();
+
         jsonSuccess([
-            'student'     => $student,
-            'rewards'     => $rewards,
-            'total_coins' => $totalCoins,
-            'checklists'  => $checklists,
-            'ace_reports'  => $aceReports,
+            'student'       => $student,
+            'rewards'       => $rewards,
+            'total_coins'   => $totalCoins,
+            'checklists'    => $checklists,
+            'ace_reports'   => $aceReports,
+            'bravo_reports' => $bravoReports,
         ]);
         break;
 

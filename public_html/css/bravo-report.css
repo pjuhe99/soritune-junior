@@ -1,0 +1,250 @@
+/* ============================================
+   BRAVO 부모 성장 리포트 스타일
+   ============================================ */
+
+.bravo-report-page {
+    font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(180deg, #FFF3E0 0%, #F5F5F5 30%);
+    min-height: 100vh;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.report-container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+/* 헤더 */
+.report-header {
+    padding: 24px 20px 16px;
+}
+.report-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.report-brand-logo {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 900;
+    font-size: 18px;
+}
+.report-brand-name {
+    font-size: 16px;
+    font-weight: 800;
+    color: #333;
+}
+.report-brand-sub {
+    font-size: 12px;
+    color: #9E9E9E;
+}
+
+/* 학생 카드 */
+.report-student-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 16px 20px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.report-student-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+.report-student-info { flex: 1; }
+.report-student-name { font-size: 18px; font-weight: 800; color: #333; }
+.report-student-class { font-size: 13px; color: #999; margin-top: 2px; }
+.report-student-coach { text-align: right; }
+
+/* 섹션 */
+.report-section {
+    margin: 0 16px 20px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.report-section-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #333;
+    margin-bottom: 14px;
+}
+.report-section-hint {
+    font-size: 12px;
+    color: #999;
+    margin-top: -8px;
+    margin-bottom: 14px;
+}
+
+/* BRAVO 레벨 뱃지 */
+.report-bravo-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.report-bravo-badge {
+    flex: 1;
+    min-width: calc(33% - 8px);
+    text-align: center;
+    padding: 12px 6px;
+    border-radius: 12px;
+    border: 2px solid #E0E0E0;
+    background: #FAFAFA;
+}
+.report-bravo-badge.passed {
+    border-color: #4CAF50;
+    background: #E8F5E9;
+}
+.report-bravo-badge.current {
+    border-color: #FF9800;
+    background: #FFF3E0;
+}
+.report-bravo-badge-icon { font-size: 20px; margin-bottom: 2px; }
+.report-bravo-badge-name { font-size: 12px; font-weight: 700; color: #333; }
+.report-bravo-badge-status {
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+.report-bravo-badge.passed .report-bravo-badge-status { background: #4CAF50; color: #fff; }
+.report-bravo-badge.current .report-bravo-badge-status { background: #FF9800; color: #fff; }
+.report-bravo-badge.locked .report-bravo-badge-status { color: #ccc; }
+
+/* 점수 카드 */
+.report-score-cards {
+    display: flex;
+    gap: 10px;
+}
+.report-score-card {
+    flex: 1;
+    text-align: center;
+    padding: 16px 8px;
+    border-radius: 12px;
+    background: #FAFAFA;
+}
+.report-score-value {
+    font-size: 28px;
+    font-weight: 900;
+    color: #333;
+}
+.report-score-label {
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+}
+.report-score-detail {
+    font-size: 11px;
+    color: #BDBDBD;
+    margin-top: 2px;
+}
+.report-auto-result {
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 12px;
+}
+.report-auto-result.pass { background: #E8F5E9; color: #2E7D32; }
+.report-auto-result.fail { background: #FFEBEE; color: #C62828; }
+
+/* 녹음 재생 */
+.report-sound-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.report-sound-item {
+    padding: 12px;
+    background: #FAFAFA;
+    border-radius: 10px;
+}
+.report-sound-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+.report-play-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+    background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+    color: #E65100;
+}
+.report-play-btn:active { transform: scale(0.97); }
+.report-play-btn.playing {
+    animation: report-pulse .8s infinite;
+}
+@keyframes report-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* 코치 코멘트 */
+.report-comment-card {
+    padding: 16px;
+    background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+    border-radius: 12px;
+}
+.report-comment-type {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.report-comment-text {
+    font-size: 14px;
+    color: #333;
+    line-height: 1.7;
+    margin-bottom: 10px;
+}
+.report-comment-coach {
+    font-size: 12px;
+    color: #999;
+    text-align: right;
+}
+
+/* 푸터 */
+.report-footer {
+    text-align: center;
+    padding: 24px 16px 40px;
+}
+.report-footer-logo {
+    font-size: 13px;
+    font-weight: 700;
+    color: #BDBDBD;
+}
+.report-footer-text {
+    font-size: 11px;
+    color: #E0E0E0;
+    margin-top: 4px;
+}

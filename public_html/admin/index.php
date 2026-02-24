@@ -691,7 +691,7 @@
 
             if (!result.success) return;
 
-            const { student, rewards, total_coins, checklists, ace_reports } = result;
+            const { student, rewards, total_coins, checklists, ace_reports, bravo_reports } = result;
             const container = document.getElementById('dashboard-content');
 
             const fields = ['zoom_attendance', 'posture_king', 'sound_homework', 'band_mission', 'leader_king'];
@@ -736,6 +736,27 @@
                                 return `<a href="/ace-report/?token=${r.report_token}" target="_blank" style="display:flex; align-items:center; gap:12px; padding:12px 14px; background:#FAFAFA; border-radius:12px; border-left:4px solid ${color}; text-decoration:none; color:inherit;">
                                     <div style="flex:1;">
                                         <div style="font-weight:700; font-size:14px; color:#333;">${levelNames[r.ace_level] || 'ACE'} · ${badge}</div>
+                                        <div style="font-size:11px; color:#999; margin-top:2px;">${date}</div>
+                                    </div>
+                                    <div style="padding:6px 12px; background:${color}; color:#fff; border-radius:8px; font-size:12px; font-weight:700;">보기</div>
+                                </a>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${bravo_reports && bravo_reports.length > 0 ? `
+                    <div class="card" style="margin-top:16px; border-radius:16px;">
+                        <div style="font-size:16px; font-weight:700; margin-bottom:12px;">📊 Bravo 성장 리포트</div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${bravo_reports.map(r => {
+                                const bandColors = { 1: '#F59E0B', 2: '#FB923C', 3: '#EA580C', 4: '#10B981', 5: '#059669', 6: '#047857' };
+                                const color = bandColors[r.bravo_level] || '#FF9800';
+                                const badge = r.coach_result === 'pass' ? 'PASS ✅' : '재도전 🔄';
+                                const date = r.confirmed_at ? r.confirmed_at.slice(0,10) : '';
+                                return `<a href="/bravo-report/?token=${r.report_token}" target="_blank" style="display:flex; align-items:center; gap:12px; padding:12px 14px; background:#FAFAFA; border-radius:12px; border-left:4px solid ${color}; text-decoration:none; color:inherit;">
+                                    <div style="flex:1;">
+                                        <div style="font-weight:700; font-size:14px; color:#333;">Bravo Jr ${r.bravo_level} · ${badge}</div>
                                         <div style="font-size:11px; color:#999; margin-top:2px;">${date}</div>
                                     </div>
                                     <div style="padding:6px 12px; background:${color}; color:#fff; border-radius:8px; font-size:12px; font-weight:700;">보기</div>
@@ -1036,7 +1057,7 @@
         async function updateUnreadBadge() {
             const result = await App.get('/api/admin.php?action=msg_unread_total', null);
             if (!result.success) return;
-            const total = (result.unread_messages || 0) + (result.unread_announcements || 0);
+            const total = result.unread_messages || 0;
             const badge = document.getElementById('unread-count-badge');
             if (badge) {
                 if (total > 0) {
