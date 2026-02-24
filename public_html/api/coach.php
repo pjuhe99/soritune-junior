@@ -876,11 +876,24 @@ switch ($action) {
             return $att;
         }, $otherClassAttendees);
 
+        // 대리출석 차단 시도 조회
+        $stmt = $db->prepare('
+            SELECT ql.student_id, ql.detail, ql.ip_address, ql.created_at,
+                   s.name as student_name
+            FROM junior_qr_log ql
+            JOIN junior_students s ON ql.student_id = s.id
+            WHERE ql.qr_session_id = ? AND ql.event_type = "blocked_proxy"
+            ORDER BY ql.created_at DESC
+        ');
+        $stmt->execute([$sessionId]);
+        $blockedAttempts = $stmt->fetchAll();
+
         jsonSuccess([
-            'students'    => $students,
-            'other_class' => $otherClassWithPosture,
-            'total'       => count($allStudents),
-            'attended'    => $attendedCount,
+            'students'          => $students,
+            'other_class'       => $otherClassWithPosture,
+            'total'             => count($allStudents),
+            'attended'          => $attendedCount,
+            'blocked_attempts'  => $blockedAttempts,
         ]);
         break;
 

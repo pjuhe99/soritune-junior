@@ -1,4 +1,19 @@
-# 소리튠 주니어 — Voice & Tone Guide (v2)
+# 소리튠 주니어 — 프로젝트 가이드
+
+## 0. 개발/배포 워크플로우
+
+| 환경 | 디렉토리 | 브랜치 |
+|------|----------|--------|
+| 개발 (JUNIOR) | `/var/www/html/_______site_SORITUNECOM_JUNIOR/` | `dev` |
+| 운영 (J) | `/var/www/html/_______site_SORITUNECOM_J/` | `main` |
+
+- 코드 작업은 항상 **JUNIOR(dev)** 에서만 진행한다.
+- 운영 반영은 사용자가 요청할 때만: dev → main 머지 + J 디렉토리에서 `git pull`.
+- J(운영)에 직접 커밋/푸시하지 않는다.
+
+---
+
+# Voice & Tone Guide (v2)
 
 앱 전체 UX writing에 적용하는 톤 가이드.
 
