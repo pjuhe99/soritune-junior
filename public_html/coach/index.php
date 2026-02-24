@@ -12,7 +12,7 @@ header('Expires: 0');
     <title>코치 대시보드 - 소리튠 주니어</title>
     <link rel="stylesheet" href="/css/common.css?v=20260223f">
     <link rel="stylesheet" href="/css/toast.css?v=20260223f">
-    <link rel="stylesheet" href="/css/coach.css?v=20260223f">
+    <link rel="stylesheet" href="/css/coach.css?v=20260224a">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="/css/admin-dock.css?v=20260223f">
 </head>
@@ -202,7 +202,7 @@ header('Expires: 0');
         }
     }
     </script>
-    <script src="/js/coach.js?v=20260223f"></script>
+    <script src="/js/coach.js?v=20260224a"></script>
     <script src="/js/admin-dock.js?v=20260220c" data-adock-active="coach"></script>
 </body>
 </html>

@@ -103,6 +103,16 @@
 .ace-level-badge.locked { background: #E0E0E0; color: #999; }
 .ace-level-badge.waiting { background: #E0E0E0; color: #999; }
 
+/* ACE/BRAVO 섹션 토글 */
+.ace-section-toggle {
+    margin: 0 0 16px;
+}
+.ace-section-toggle .tab-btn.active {
+    background: #FF5722;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(255,87,34,0.25);
+}
+
 /* 액션 버튼 영역 */
 .ace-action {
     text-align: center;

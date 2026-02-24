@@ -64,7 +64,7 @@ try {
 
             // Bravo 레벨별 최신 제출 상태
             $bravoLevelStatus = [];
-            if ($bravoCurrentLevel) {
+            if ((int)$currentLevel >= 4) {
                 $stmt = $db->prepare('
                     SELECT bravo_level, status, coach_result
                     FROM junior_bravo_submissions

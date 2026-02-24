@@ -1,221 +1,278 @@
 /* ============================================
    Bravo 테스트 페이지 스타일
+   (ACE 디자인 시스템 통합)
    ============================================ */
 
 .bravo-page {
-    font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #F8FAFC;
+    font-family: var(--font-family);
+    background: #F8F9FA;
     min-height: 100vh;
     -webkit-user-select: none;
     user-select: none;
 }
 
-/* 헤더 */
-.bravo-header {
-    background: #1E293B;
-    padding: 40px 20px 14px;
-    color: #fff;
+/* ============================================
+   대시보드
+   ============================================ */
+.bravo-dashboard {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px;
 }
-.bravo-header-sub {
-    font-size: 10px;
-    letter-spacing: 2px;
-    opacity: 0.5;
-    margin-bottom: 6px;
+
+.bravo-hero {
+    text-align: center;
+    padding: 32px 0 24px;
 }
-.bravo-header-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
+.bravo-hero-icon {
+    font-size: 56px;
+    margin-bottom: 12px;
+    animation: ace-bounce 2s infinite;
 }
-.bravo-header-title h1 {
+@keyframes ace-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+.bravo-hero-title {
+    font-size: 28px;
+    font-weight: 900;
+    color: #FF5722;
+    margin: 0 0 4px;
+}
+.bravo-hero-desc {
+    font-size: 14px;
+    color: var(--gray-500);
     margin: 0;
-    font-size: 20px;
-    font-weight: 800;
-}
-.bravo-header-emoji {
-    font-size: 22px;
 }
 
-/* 밴드 탭 */
-.bravo-band-tabs {
-    display: flex;
-    gap: 8px;
-}
-.bravo-band-tab {
-    flex: 1;
-    padding: 10px 8px;
-    border-radius: 14px;
-    border: 2px solid transparent;
-    background: rgba(255,255,255,0.06);
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.2s;
-}
-.bravo-band-tab.active {
-    background: rgba(255,255,255,0.15);
-}
-.bravo-band-tab-emoji {
-    font-size: 18px;
-}
-.bravo-band-tab-name {
-    font-size: 12px;
-    font-weight: 800;
-    color: rgba(255,255,255,0.4);
-}
-.bravo-band-tab.active .bravo-band-tab-name {
-    color: var(--band-color);
+/* 밴드 구분 라벨 */
+.bravo-band-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gray-500);
+    margin: 12px 0 4px;
+    padding-left: 4px;
 }
 
-/* 레벨 선택 바 */
-.bravo-level-bar {
+/* 레벨 카드 (ACE 카드 스타일) */
+.bravo-level-cards {
     display: flex;
-    gap: 4px;
-    padding: 8px 12px;
-    background: #fff;
-    border-bottom: 1px solid #E2E8F0;
-}
-.bravo-level-btn {
-    flex: 1;
-    padding: 7px 4px;
-    border-radius: 10px;
-    border: 2px solid transparent;
-    background: transparent;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.2s;
-}
-.bravo-level-btn.active {
-    border-color: var(--level-color);
-    background: var(--level-light);
-}
-.bravo-level-btn-name {
-    font-size: 11px;
-    font-weight: 800;
-    color: #94A3B8;
-}
-.bravo-level-btn.active .bravo-level-btn-name {
-    color: var(--level-color);
-}
-.bravo-level-btn-sub {
-    font-size: 8px;
-    color: #94A3B8;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
 }
 
-/* 테스트 헤더 */
-.bravo-test-header {
-    padding: 14px 18px;
-    color: #fff;
-}
-.bravo-test-header-top {
+.bravo-level-card {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    border-radius: 14px;
+    border: 2px solid var(--gray-300);
+    transition: all .2s;
 }
-.bravo-test-header-sub {
-    font-size: 10px;
-    opacity: 0.7;
+.bravo-level-card.current {
+    border-color: #FF5722;
+    background: #FFF3E0;
+    box-shadow: 0 2px 12px rgba(255,87,34,.12);
 }
-.bravo-test-header-title {
-    font-size: 18px;
-    font-weight: 800;
-    margin: 2px 0 0;
+.bravo-level-card.passed {
+    border-color: #4CAF50;
+    background: #E8F5E9;
 }
-.bravo-test-header-icon {
+.bravo-level-card.locked {
+    opacity: 0.5;
+}
+
+.bravo-level-card-icon {
     width: 44px;
     height: 44px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.2);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+}
+.bravo-level-card-info {
+    flex: 1;
+    min-width: 0;
+}
+.bravo-level-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--black);
+}
+.bravo-level-card-desc {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 2px;
 }
 
-/* 파트 탭 */
-.bravo-part-tabs {
-    display: flex;
-    gap: 4px;
-    margin-top: 10px;
-}
-.bravo-part-tab {
-    flex: 1;
-    padding: 7px 4px;
-    border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    text-align: center;
-    background: rgba(255,255,255,0.08);
-    transition: all 0.2s;
-}
-.bravo-part-tab.active {
-    background: rgba(255,255,255,0.3);
-}
-.bravo-part-tab-icon {
-    font-size: 15px;
-}
-.bravo-part-tab-name {
-    font-size: 9px;
-    color: #fff;
-    font-weight: 400;
-    opacity: 0.6;
-}
-.bravo-part-tab.active .bravo-part-tab-name {
+.bravo-level-card-chip {
+    font-size: 12px;
     font-weight: 700;
-    opacity: 1;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
 }
-.bravo-part-tab-check {
-    font-size: 8px;
-    color: #90EE90;
+.bravo-level-card-chip.pass {
+    background: #4CAF50;
+    color: #fff;
+}
+.bravo-level-card-chip.available {
+    background: #FF5722;
+    color: #fff;
+}
+.bravo-level-card-chip.waiting {
+    background: var(--gray-300);
+    color: var(--gray-600);
+}
+.bravo-level-card-chip.locked {
+    background: var(--gray-300);
+    color: var(--gray-500);
+}
+
+/* ============================================
+   테스트 화면 - 스텝퍼 (순차 진행)
+   ============================================ */
+.bravo-stepper {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px 20px 12px;
+}
+.bravo-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.bravo-step-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--gray-200);
+    color: var(--gray-500);
+    transition: all 0.3s;
+}
+.bravo-step.active .bravo-step-dot {
+    background: #FF5722;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(255,87,34,.3);
+    transform: scale(1.1);
+}
+.bravo-step.done .bravo-step-dot {
+    background: #4CAF50;
+    color: #fff;
+}
+.bravo-step-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--gray-400);
+    white-space: nowrap;
+}
+.bravo-step.active .bravo-step-label {
+    color: #FF5722;
+    font-weight: 700;
+}
+.bravo-step.done .bravo-step-label {
+    color: #4CAF50;
+}
+.bravo-step-line {
+    height: 2px;
+    flex: 1;
+    min-width: 28px;
+    background: var(--gray-300);
+    margin: 0 6px;
+    margin-top: 14px;
+    transition: background 0.3s;
+}
+.bravo-step-line.done {
+    background: #4CAF50;
+}
+
+/* 단계 전환 안내 */
+.bravo-stage-transition {
+    text-align: center;
+    padding: 40px 20px;
+    animation: fadeIn 0.3s ease;
+}
+.bravo-stage-transition-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+.bravo-stage-transition-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #FF5722;
+    margin-bottom: 4px;
+}
+.bravo-stage-transition-desc {
+    font-size: 14px;
+    color: var(--gray-500);
 }
 
 /* 테스트 컨텐츠 */
 .bravo-test-content {
-    padding: 14px 16px;
+    padding: 16px 0;
 }
 
-/* 진행률 */
+/* ============================================
+   진행률 (ACE 스타일)
+   ============================================ */
 .bravo-progress-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 .bravo-progress-label {
     font-size: 12px;
     font-weight: 700;
+    color: #FF5722;
 }
 .bravo-progress-count {
     font-size: 12px;
-    color: #64748B;
+    color: var(--gray-500);
     font-weight: 600;
 }
 .bravo-progress-track {
     height: 4px;
     border-radius: 2px;
-    background: #F1F5F9;
+    background: var(--gray-300);
     margin-bottom: 16px;
     overflow: hidden;
 }
 .bravo-progress-fill {
     height: 100%;
     border-radius: 2px;
+    background: linear-gradient(90deg, #FF5722, #FF9800);
     transition: width 0.3s;
 }
 
-/* 카드 공통 */
+/* ============================================
+   카드 공통 (ACE word-card 스타일)
+   ============================================ */
 .bravo-card {
     background: #fff;
-    border-radius: 24px;
-    padding: 28px 22px;
-    border: 1px solid #E2E8F0;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-    margin-bottom: 14px;
+    border-radius: 20px;
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,.06);
+    margin-bottom: 24px;
     position: relative;
 }
 .bravo-card.done {
-    border-width: 2.5px;
-    border-color: #059669;
+    border: 2px solid #4CAF50;
 }
 .bravo-card-check {
     position: absolute;
@@ -224,7 +281,7 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: #059669;
+    background: #4CAF50;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -233,22 +290,24 @@
     font-weight: 700;
 }
 
-/* 퀴즈 카드 */
+/* ============================================
+   퀴즈 카드
+   ============================================ */
 .bravo-quiz-word {
     text-align: center;
     margin-bottom: 20px;
 }
 .bravo-quiz-word-text {
-    font-size: 42px;
-    font-weight: 800;
-    color: #1E293B;
-    font-family: 'Fredoka', sans-serif;
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--black);
+    line-height: 1.3;
 }
 .bravo-quiz-word-ipa {
-    font-size: 12px;
-    color: #64748B;
-    font-family: monospace;
-    margin-top: 4px;
+    font-size: 16px;
+    color: var(--gray-500);
+    font-family: 'Segoe UI', 'Lucida Sans Unicode', sans-serif;
+    margin-top: 8px;
 }
 .bravo-quiz-choices {
     display: grid;
@@ -257,31 +316,28 @@
 }
 .bravo-quiz-choice {
     padding: 16px 10px;
-    border-radius: 16px;
-    border: 2.5px solid #E2E8F0;
+    border-radius: 14px;
+    border: 2px solid var(--gray-300);
     background: #fff;
     cursor: pointer;
     font-size: 16px;
     font-weight: 700;
-    color: #1E293B;
+    color: var(--black);
     transition: all 0.15s;
     font-family: inherit;
 }
 .bravo-quiz-choice:active {
     transform: scale(0.97);
 }
-.bravo-quiz-choice.picked {
-    transform: scale(0.97);
-}
 .bravo-quiz-choice.correct {
-    border-color: #059669;
-    background: #ECFDF5;
-    color: #059669;
+    border-color: #4CAF50;
+    background: #E8F5E9;
+    color: #4CAF50;
 }
 .bravo-quiz-choice.wrong {
-    border-color: #EF4444;
-    background: #FEF2F2;
-    color: #EF4444;
+    border-color: #F44336;
+    background: #FFEBEE;
+    color: #F44336;
 }
 .bravo-quiz-choice.dimmed {
     opacity: 0.4;
@@ -292,27 +348,28 @@
     font-size: 16px;
     font-weight: 700;
 }
-.bravo-quiz-result.success { color: #059669; }
+.bravo-quiz-result.success { color: #4CAF50; }
 .bravo-quiz-answer {
     text-align: center;
     margin-top: 14px;
     font-size: 13px;
-    color: #64748B;
+    color: var(--gray-500);
 }
 
-/* 문장 카드 */
+/* ============================================
+   문장 카드
+   ============================================ */
 .bravo-sentence-text {
-    font-size: 24px;
-    font-weight: 800;
-    color: #1E293B;
-    line-height: 1.4;
-    font-family: 'Fredoka', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--black);
+    line-height: 1.5;
     margin-bottom: 8px;
     text-align: center;
 }
 .bravo-sentence-kr {
     font-size: 13px;
-    color: #64748B;
+    color: var(--gray-500);
     text-align: center;
     margin-bottom: 4px;
 }
@@ -323,13 +380,16 @@
     font-size: 10px;
     font-weight: 700;
     margin-bottom: 16px;
+    background: rgba(255,87,34,0.1);
+    color: #FF5722;
 }
 
-/* 파닉스 카드 */
+/* ============================================
+   파닉스 카드
+   ============================================ */
 .bravo-phonics-letters {
     font-size: 36px;
-    font-weight: 800;
-    font-family: 'Fredoka', sans-serif;
+    font-weight: 900;
     letter-spacing: 8px;
     margin-bottom: 12px;
     padding: 12px 24px;
@@ -337,41 +397,44 @@
     display: inline-block;
     line-height: 1.3;
     text-align: center;
+    color: #FF5722;
+    background: rgba(255,87,34,0.1);
 }
 .bravo-phonics-arrow {
     font-size: 14px;
-    color: #64748B;
+    color: var(--gray-500);
     margin: 10px 0 6px;
     font-weight: 600;
     text-align: center;
 }
 .bravo-phonics-word {
-    font-size: 72px;
-    font-weight: 800;
-    color: #1E293B;
-    font-family: 'Fredoka', sans-serif;
-    letter-spacing: 6px;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--black);
+    letter-spacing: 4px;
     line-height: 1;
     text-align: center;
 }
 
-/* 블록 카드 */
+/* ============================================
+   블록 카드
+   ============================================ */
 .bravo-block-hint {
     text-align: center;
     margin-bottom: 14px;
     padding: 10px 16px;
-    background: #F1F5F9;
+    background: var(--gray-100);
     border-radius: 12px;
 }
 .bravo-block-hint-label {
     font-size: 11px;
-    color: #64748B;
+    color: var(--gray-500);
     margin-bottom: 2px;
 }
 .bravo-block-hint-text {
     font-size: 15px;
     font-weight: 700;
-    color: #1E293B;
+    color: var(--black);
     line-height: 1.5;
 }
 .bravo-block-slots {
@@ -385,12 +448,11 @@
 .bravo-block-fixed {
     padding: 10px 14px;
     border-radius: 12px;
-    background: #F1F5F9;
-    border: 1px solid #E2E8F0;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
     font-size: 15px;
     font-weight: 700;
-    color: #1E293B;
-    font-family: 'Fredoka', sans-serif;
+    color: var(--black);
 }
 .bravo-block-blank {
     padding: 10px 16px;
@@ -399,27 +461,14 @@
     text-align: center;
     font-weight: 800;
     font-size: 15px;
-    font-family: 'Fredoka', sans-serif;
     transition: all 0.2s;
-}
-.bravo-block-blank.current {
-    transform: scale(1.05);
-}
-.bravo-block-blank.correct {
-    background: rgba(5,150,105,0.12);
-    color: #059669;
-    border: 2.5px solid #059669;
-}
-.bravo-block-blank.wrong {
-    background: rgba(239,68,68,0.1);
-    color: #EF4444;
-    border: 2.5px solid #EF4444;
 }
 .bravo-block-indicator {
     text-align: center;
     margin-bottom: 14px;
     font-size: 11px;
     font-weight: 600;
+    color: #FF5722;
 }
 .bravo-block-choices {
     display: grid;
@@ -429,202 +478,245 @@
 .bravo-block-choice {
     padding: 14px 10px;
     border-radius: 14px;
-    border: 2.5px solid #E2E8F0;
+    border: 2px solid var(--gray-300);
     background: #fff;
     cursor: pointer;
     font-size: 14px;
     font-weight: 700;
-    color: #1E293B;
+    color: var(--black);
     font-family: inherit;
     transition: all 0.15s;
 }
 .bravo-block-choice.correct {
-    border-color: #059669;
-    background: #ECFDF5;
-    color: #059669;
+    border-color: #4CAF50;
+    background: #E8F5E9;
+    color: #4CAF50;
 }
 .bravo-block-choice.wrong {
-    border-color: #EF4444;
-    background: #FEF2F2;
-    color: #EF4444;
+    border-color: #F44336;
+    background: #FFEBEE;
+    color: #F44336;
 }
 .bravo-block-success {
     margin-top: 10px;
     padding: 14px 16px;
-    background: #ECFDF5;
+    background: #E8F5E9;
     border-radius: 14px;
     text-align: center;
 }
 .bravo-block-success-text {
     font-size: 16px;
     font-weight: 700;
-    color: #059669;
-    font-family: 'Fredoka', sans-serif;
+    color: #4CAF50;
     line-height: 1.4;
 }
 
-/* 녹음 버튼 */
+/* ============================================
+   녹음 버튼 (ACE 스타일)
+   ============================================ */
 .bravo-rec-area {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    margin-top: 12px;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 16px 0;
 }
 .bravo-rec-btn {
-    width: 68px;
-    height: 68px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
-    border: 4px solid;
+    border: none;
+    background: #FF5722;
+    color: #fff;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.1s;
+    box-shadow: 0 4px 16px rgba(255,87,34,.3);
+    transition: all .15s;
 }
 .bravo-rec-btn:active {
-    transform: scale(0.92);
-}
-.bravo-rec-play-btn {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 3px solid;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #fff;
-    transition: transform 0.1s;
-}
-.bravo-rec-play-btn:active {
-    transform: scale(0.92);
+    transform: scale(0.95);
 }
 .bravo-rec-btn.recording {
-    border-color: #EF4444;
-    background: #FEE2E2;
+    background: #D32F2F;
+    animation: bravo-pulse 1s infinite;
+}
+@keyframes bravo-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,87,34,.4); }
+    50% { box-shadow: 0 0 0 16px rgba(255,87,34,0); }
 }
 .bravo-rec-btn-stop {
     width: 24px;
     height: 24px;
     border-radius: 4px;
-    background: #EF4444;
+    background: #fff;
 }
 .bravo-rec-dot {
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #EF4444;
-    animation: pulse 1s infinite;
+    background: #D32F2F;
+    animation: bravo-blink 1s infinite;
+}
+@keyframes bravo-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+.bravo-rec-play-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #E3F2FD;
+    color: #1565C0;
+    transition: transform 0.1s;
+}
+.bravo-rec-play-btn:active {
+    transform: scale(0.92);
 }
 .bravo-rec-hint {
-    font-size: 11px;
-    color: #64748B;
+    font-size: 12px;
+    color: var(--gray-500);
 }
 
-/* 네비 */
+/* ============================================
+   네비게이션 (ACE 버튼 스타일)
+   ============================================ */
 .bravo-nav {
     display: flex;
-    gap: 8px;
+    gap: 12px;
+    margin-top: 8px;
 }
 .bravo-nav-prev, .bravo-nav-next {
     flex: 1;
-    padding: 12px;
-    border-radius: 14px;
-    font-size: 14px;
-    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
     cursor: pointer;
     font-family: inherit;
+    transition: all .15s;
 }
 .bravo-nav-prev {
-    border: 1px solid #E2E8F0;
     background: #fff;
-    color: #64748B;
+    color: var(--gray-600);
+    border: 1.5px solid var(--gray-300);
 }
+.bravo-nav-prev:active { background: var(--gray-100); }
 .bravo-nav-next {
     border: none;
+    background: #FF5722;
     color: #fff;
-    font-weight: 700;
+    box-shadow: 0 3px 12px rgba(255,87,34,.25);
 }
+.bravo-nav-next:active { transform: scale(0.97); }
 .bravo-nav-prev:disabled, .bravo-nav-next:disabled {
-    opacity: 0.3;
+    opacity: 0.4;
     cursor: default;
+    pointer-events: none;
 }
 
-/* 하단 제출 */
+/* ============================================
+   하단 제출 바
+   ============================================ */
 .bravo-submit-bar {
     position: fixed;
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    max-width: 520px;
-    padding: 10px 16px;
+    max-width: 480px;
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
     background: #fff;
-    border-top: 1px solid #E2E8F0;
+    border-top: 1px solid var(--gray-200);
+    box-shadow: 0 -2px 12px rgba(0,0,0,.06);
     z-index: 10;
 }
 .bravo-submit-btn {
     width: 100%;
-    padding: 16px;
-    border-radius: 16px;
+    padding: 14px;
+    border-radius: 14px;
     border: none;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 800;
     cursor: pointer;
     font-family: inherit;
     transition: all 0.2s;
 }
 .bravo-submit-btn:disabled {
-    background: #F1F5F9;
-    color: #94A3B8;
+    background: var(--gray-200);
+    color: var(--gray-500);
     cursor: default;
 }
-
-/* 결과 화면 */
-.bravo-result {
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 50px 16px;
-    text-align: center;
+.bravo-submit-btn:not(:disabled) {
+    background: #FF5722;
+    color: #fff;
+    box-shadow: 0 3px 12px rgba(255,87,34,.25);
 }
-.bravo-result-emoji {
-    font-size: 72px;
-    margin-bottom: 16px;
+.bravo-submit-btn:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+/* ============================================
+   결과 화면 (ACE 축하 스타일)
+   ============================================ */
+.bravo-result {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.bravo-result-content {
+    text-align: center;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+}
+.bravo-result-coin-drop {
+    animation: bravo-coin-drop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    margin-bottom: 20px;
+}
+.bravo-result-coin-icon { font-size: 56px; }
+.bravo-result-coin-text {
+    font-size: 28px;
+    font-weight: 900;
+    color: #FF9800;
+    margin-top: 4px;
+}
+@keyframes bravo-coin-drop {
+    0% { transform: translateY(-100px) scale(0.5); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 .bravo-result-title {
-    font-size: 32px;
-    font-weight: 800;
-    color: #1E293B;
-    font-family: 'Fredoka', sans-serif;
-}
-.bravo-result-coins {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin: 20px 0;
-}
-.bravo-result-coin {
-    font-size: 40px;
-}
-.bravo-result-coin-text {
-    font-size: 20px;
-    font-weight: 700;
-    color: #FF6B35;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--black);
     margin-bottom: 8px;
 }
+.bravo-result-sub {
+    font-size: 14px;
+    color: var(--gray-500);
+    margin-bottom: 24px;
+}
 .bravo-result-score {
-    background: #F8FAFC;
-    border-radius: 16px;
+    background: #FFF8E1;
+    border-radius: 12px;
     padding: 16px;
-    margin: 16px 0 24px;
-    border: 1px solid #E2E8F0;
+    margin-bottom: 16px;
     text-align: left;
 }
 .bravo-result-score-title {
     font-size: 13px;
     font-weight: 700;
-    color: #1E293B;
+    color: var(--black);
     margin-bottom: 8px;
 }
 .bravo-result-score-row {
@@ -635,7 +727,7 @@
 }
 .bravo-result-score-label {
     font-size: 12px;
-    color: #1E293B;
+    color: var(--black);
     font-weight: 600;
     width: 80px;
 }
@@ -643,7 +735,7 @@
     flex: 1;
     height: 8px;
     border-radius: 4px;
-    background: #F1F5F9;
+    background: var(--gray-200);
     overflow: hidden;
 }
 .bravo-result-score-fill {
@@ -656,142 +748,68 @@
     width: 50px;
     text-align: right;
 }
-.bravo-result-msg {
-    font-size: 14px;
-    color: #64748B;
-    line-height: 1.6;
+.bravo-result-auto {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+}
+.bravo-result-auto.pass {
+    background: #E8F5E9;
+    color: #4CAF50;
+}
+.bravo-result-auto.fail {
+    background: #FFEBEE;
+    color: #F44336;
 }
 .bravo-result-home {
-    margin-top: 30px;
-    padding: 14px 40px;
+    margin-top: 16px;
+    padding: 14px 32px;
     border-radius: 14px;
     border: none;
-    background: #1E293B;
+    background: #FF5722;
     color: #fff;
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
+    box-shadow: 0 3px 12px rgba(255,87,34,.25);
 }
+.bravo-result-home:active { transform: scale(0.97); }
 
-/* 대시보드(레벨 선택) */
-.bravo-dashboard {
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 0;
-}
-.bravo-level-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 16px;
-}
-.bravo-level-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: #fff;
-    border-radius: 14px;
-    border: 2px solid #E2E8F0;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.bravo-level-card.current {
-    border-color: var(--level-color);
-    background: var(--level-light);
-}
-.bravo-level-card.passed {
-    border-color: #059669;
-    background: #ECFDF5;
-}
-.bravo-level-card.locked {
-    opacity: 0.5;
-    cursor: default;
-}
-.bravo-level-card-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    font-weight: 800;
-    color: #fff;
-    flex-shrink: 0;
-}
-.bravo-level-card-info {
-    flex: 1;
-    min-width: 0;
-}
-.bravo-level-card-name {
-    font-size: 14px;
-    font-weight: 800;
-    color: #1E293B;
-}
-.bravo-level-card-desc {
-    font-size: 11px;
-    color: #64748B;
-    margin-top: 2px;
-}
-.bravo-level-card-chip {
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 700;
-    flex-shrink: 0;
-}
-.bravo-level-card-chip.pass {
-    background: #ECFDF5;
-    color: #059669;
-}
-.bravo-level-card-chip.available {
-    background: #EDE7F6;
-    color: #7C5CFC;
-}
-.bravo-level-card-chip.waiting {
-    background: #FFF3E0;
-    color: #E65100;
-}
-.bravo-level-card-chip.locked {
-    background: #F5F5F5;
-    color: #9E9E9E;
-}
-
-/* 뒤로가기 */
-.bravo-back-btn {
-    position: absolute;
-    top: 44px;
-    right: 16px;
-    background: rgba(255,255,255,0.15);
-    border: none;
-    color: #fff;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    z-index: 5;
-}
-
-/* 애니메이션 */
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-}
-@keyframes confetti-fall {
-    0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
-}
-.bravo-confetti {
+/* ============================================
+   컨페티 (ACE 스타일)
+   ============================================ */
+.bravo-confetti-container {
     position: fixed;
     top: 0;
-    font-size: 20px;
-    animation: confetti-fall 3s ease-out forwards;
+    left: 0;
+    right: 0;
+    bottom: 0;
     pointer-events: none;
-    z-index: 100;
+    z-index: 0;
+}
+.bravo-confetti-piece {
+    position: absolute;
+    top: -10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    animation: bravo-confetti-fall linear forwards;
+}
+@keyframes bravo-confetti-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* ============================================
+   반응형
+   ============================================ */
+@media (max-width: 380px) {
+    .bravo-quiz-word-text { font-size: 28px; }
+    .bravo-sentence-text { font-size: 18px; }
+    .bravo-rec-btn { width: 70px; height: 70px; }
+    .bravo-phonics-word { font-size: 36px; }
 }
