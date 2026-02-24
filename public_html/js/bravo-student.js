@@ -344,9 +344,11 @@ const BravoApp = (() => {
             prevBtnHtml = `<button class="bravo-nav-prev" onclick="BravoApp.prevItem()">← 이전</button>`;
         }
 
-        // 다음 버튼: 녹음 섹션에서는 현재 문항 녹음 완료 전까지 비활성화
+        // 다음 버튼: 녹음/블록 섹션에서는 현재 문항 완료 전까지 비활성화
         const needsRecording = (cp.key === 'sentence' || cp.key === 'phonics');
-        const currentItemDone = needsRecording ? !!recordings[item.id] : true;
+        const isBlock = cp.key === 'block';
+        const blockDone = isBlock && answers[item.id] ? Object.keys(answers[item.id]).length >= (item.item_data.blanks || 1) : false;
+        const currentItemDone = needsRecording ? !!recordings[item.id] : isBlock ? blockDone : true;
 
         if (isLastItem && currentPartDone && !isLastPart) {
             nextBtnHtml = `<button class="bravo-nav-next" onclick="BravoApp.advancePart()">다음 단계 →</button>`;

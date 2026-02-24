@@ -31,7 +31,7 @@ header('Expires: 0');
     <script src="/js/toast.js?v=20260221"></script>
     <script src="/js/common.js?v=20260221"></script>
     <script src="/js/ace-recorder.js?v=20260221a"></script>
-    <script src="/js/bravo-student.js?v=20260224d"></script>
+    <script src="/js/bravo-student.js?v=20260224f"></script>
     <script src="/js/ace-student.js?v=20260224e"></script>
 </body>
 </html>
