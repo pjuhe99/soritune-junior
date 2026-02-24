@@ -333,6 +333,8 @@ if ($isActive) {
                     document.getElementById('success-desc').textContent =
                         result.already ? '이미 출석이 기록되어 있습니다' : '출석이 성공적으로 기록되었습니다';
                     showState('success');
+                } else if (result.code === 'proxy_blocked') {
+                    showError('🚫', '출석할 수 없어요', result.error);
                 } else {
                     showError('⚠️', '출석 오류', result.error || '출석 처리에 실패했습니다');
                 }

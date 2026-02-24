@@ -59,6 +59,56 @@ switch ($action) {
             break;
         }
 
+        // 대리출석 방지: 같은 fingerprint로 다른 학생이 이미 출석했는지 확인
+        if ($fingerprint) {
+            $stmt = $db->prepare('
+                SELECT qa.student_id, s.name as attended_name, s.phone_last4 as attended_phone_last4
+                FROM junior_qr_attendance qa
+                JOIN junior_students s ON qa.student_id = s.id
+                WHERE qa.qr_session_id = ? AND qa.fingerprint = ? AND qa.student_id != ? AND qa.status != "removed"
+                LIMIT 1
+            ');
+            $stmt->execute([$qrSession['id'], $fingerprint, $studentId]);
+            $existingAttendance = $stmt->fetch();
+
+            if ($existingAttendance) {
+                // 형제자매 예외 확인 (phone_last4 + 성 일치)
+                $stmt = $db->prepare('SELECT phone_last4, SUBSTRING(name, 1, 1) as surname FROM junior_students WHERE id = ?');
+                $stmt->execute([$studentId]);
+                $attemptStudent = $stmt->fetch();
+
+                $existingSurname = mb_substr($existingAttendance['attended_name'], 0, 1);
+                $isSibling = $attemptStudent
+                    && $attemptStudent['phone_last4']
+                    && $attemptStudent['phone_last4'] === $existingAttendance['attended_phone_last4']
+                    && $attemptStudent['surname'] === $existingSurname;
+
+                if (!$isSibling) {
+                    // 차단 로그 기록
+                    $stmt = $db->prepare('
+                        INSERT INTO junior_qr_log (qr_session_id, event_type, student_id, detail, ip_address)
+                        VALUES (?, "blocked_proxy", ?, ?, ?)
+                    ');
+                    $stmt->execute([
+                        $qrSession['id'], $studentId,
+                        json_encode([
+                            'attempted_student' => $studentName,
+                            'existing_student_id' => (int)$existingAttendance['student_id'],
+                            'existing_student_name' => $existingAttendance['attended_name'],
+                            'fingerprint' => $fingerprint
+                        ], JSON_UNESCAPED_UNICODE),
+                        getClientIP()
+                    ]);
+
+                    jsonError(
+                        '이 기기에서 이미 다른 친구가 출석했어요! 직접 본인 핸드폰으로 출석하거나, 코치 선생님께 말해주세요',
+                        403,
+                        ['code' => 'proxy_blocked']
+                    );
+                }
+            }
+        }
+
         // 본반/타반 확인
         $stmt = $db->prepare('
             SELECT cs.is_primary

@@ -767,8 +767,30 @@ const CoachApp = (() => {
         // 출석자만 표시
         const attended = result.students.filter(s => s.attended);
 
+        // 대리출석 시도 경고
+        let blockedHtml = '';
+        if (result.blocked_attempts && result.blocked_attempts.length > 0) {
+            blockedHtml = result.blocked_attempts.map(b => {
+                const detail = JSON.parse(b.detail || '{}');
+                const time = new Date(b.created_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+                return `
+                    <div style="background:#FFF3E0; border-left:3px solid #FF9800; border-radius:8px; padding:10px 12px; margin-bottom:6px;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:14px;">⚠️</span>
+                            <span style="font-weight:600; font-size:13px; color:#E65100;">대리출석 시도 감지</span>
+                            <span style="font-size:11px; color:#999; flex:1; text-align:right;">${time}</span>
+                        </div>
+                        <div style="font-size:12px; color:#666; margin-top:4px; padding-left:26px;">
+                            <b>${detail.attempted_student || b.student_name}</b>님이
+                            <b>${detail.existing_student_name || '다른 학생'}</b>님의 기기에서 출석 시도
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         if (attended.length === 0 && (!result.other_class || result.other_class.length === 0)) {
-            list.innerHTML = '<div style="text-align:center; color:#9E9E9E; padding:20px 0; font-size:14px;">아직 출석자가 없습니다</div>';
+            list.innerHTML = blockedHtml || '<div style="text-align:center; color:#9E9E9E; padding:20px 0; font-size:14px;">아직 출석자가 없습니다</div>';
             return;
         }
 
@@ -819,7 +841,7 @@ const CoachApp = (() => {
             }).join('');
         }
 
-        list.innerHTML = html;
+        list.innerHTML = blockedHtml + html;
     }
 
     async function manualAttendance(sessionId, studentId, type) {
