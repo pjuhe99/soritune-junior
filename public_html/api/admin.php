@@ -550,6 +550,351 @@ switch ($action) {
         }
         break;
 
+    // ============================================
+    // 메시지 기능 (학부모 ↔ 코치 1:1)
+    // ============================================
+
+    // 아직 대화를 시작하지 않은 코치 목록 (새 대화 시작용)
+    case 'msg_available_coaches':
+        $admin = requireAdmin(['parent']);
+        $parentPhone = $admin['parent_phone'];
+        $parentStudentIds = $admin['parent_student_ids'] ?? [];
+        if (empty($parentStudentIds)) jsonSuccess(['available' => []]);
+
+        $db = getDB();
+        $placeholders = implode(',', array_fill(0, count($parentStudentIds), '?'));
+
+        // 내 아이들의 반·코치 정보 (primary 반 기준)
+        $stmt = $db->prepare("
+            SELECT s.id as student_id, s.name as student_name, cs.class_id,
+                   c.display_name as class_name, c.coach_name
+            FROM junior_students s
+            JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_primary = 1 AND cs.is_active = 1
+            JOIN junior_classes c ON cs.class_id = c.id
+            WHERE s.id IN ($placeholders) AND s.is_active = 1
+        ");
+        $stmt->execute($parentStudentIds);
+        $studentClasses = $stmt->fetchAll();
+
+        // 이미 스레드가 있는 (student_id, class_id) 쌍 조회
+        $stmt = $db->prepare("
+            SELECT student_id, class_id FROM junior_message_threads
+            WHERE parent_phone = ? AND is_active = 1
+        ");
+        $stmt->execute([$parentPhone]);
+        $existingPairs = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $existingPairs[] = $row['student_id'] . '_' . $row['class_id'];
+        }
+
+        // 스레드가 없는 것만 필터
+        $available = [];
+        foreach ($studentClasses as $sc) {
+            $key = $sc['student_id'] . '_' . $sc['class_id'];
+            if (!in_array($key, $existingPairs)) {
+                $available[] = $sc;
+            }
+        }
+
+        jsonSuccess(['available' => $available]);
+        break;
+
+    // 내 아이들 대화 스레드 목록
+    case 'msg_threads':
+        $admin = requireAdmin(['parent']);
+        $parentPhone = $admin['parent_phone'];
+        $db = getDB();
+
+        $stmt = $db->prepare("
+            SELECT t.id as thread_id, t.student_id, t.class_id, t.last_message_at,
+                   s.name as student_name, c.display_name as class_name, c.coach_name,
+                   (SELECT body FROM junior_messages WHERE thread_id = t.id AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1) as last_message,
+                   (SELECT COUNT(*) FROM junior_messages m
+                    WHERE m.thread_id = t.id AND m.is_deleted = 0 AND m.sender_type = 'coach'
+                    AND m.created_at > COALESCE(
+                        (SELECT last_read_at FROM junior_message_reads
+                         WHERE thread_id = t.id AND reader_type = 'parent' AND reader_phone = ?),
+                        '1970-01-01'
+                    )) as unread_count
+            FROM junior_message_threads t
+            JOIN junior_students s ON t.student_id = s.id
+            JOIN junior_classes c ON t.class_id = c.id
+            WHERE t.parent_phone = ? AND t.is_active = 1
+            ORDER BY t.last_message_at DESC
+        ");
+        $stmt->execute([$parentPhone, $parentPhone]);
+        jsonSuccess(['threads' => $stmt->fetchAll()]);
+        break;
+
+    // 스레드 메시지 조회
+    case 'msg_thread_detail':
+        $admin = requireAdmin(['parent']);
+        $threadId = (int)($_GET['thread_id'] ?? 0);
+        $beforeId = (int)($_GET['before_id'] ?? 0);
+        $limit = min(50, max(10, (int)($_GET['limit'] ?? 30)));
+        if (!$threadId) jsonError('스레드 ID가 필요합니다');
+
+        $db = getDB();
+        $thread = verifyThreadAccessForParent($admin, $threadId);
+
+        $sql = 'SELECT id, sender_type, sender_name, body, image_path, created_at
+                FROM junior_messages WHERE thread_id = ? AND is_deleted = 0';
+        $params = [$threadId];
+        if ($beforeId) { $sql .= ' AND id < ?'; $params[] = $beforeId; }
+        $sql .= ' ORDER BY created_at DESC LIMIT ?';
+        $params[] = $limit;
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $messages = array_reverse($stmt->fetchAll());
+
+        // 읽음 갱신
+        $stmt = $db->prepare('
+            INSERT INTO junior_message_reads (thread_id, reader_type, reader_phone, last_read_at)
+            VALUES (?, "parent", ?, NOW())
+            ON DUPLICATE KEY UPDATE last_read_at = NOW()
+        ');
+        $stmt->execute([$threadId, $admin['parent_phone']]);
+
+        // 스레드 정보
+        $stmt = $db->prepare('SELECT s.name as student_name, c.display_name as class_name, c.coach_name
+                              FROM junior_message_threads t
+                              JOIN junior_students s ON t.student_id = s.id
+                              JOIN junior_classes c ON t.class_id = c.id WHERE t.id = ?');
+        $stmt->execute([$threadId]);
+        $threadInfo = $stmt->fetch();
+
+        jsonSuccess(['messages' => $messages, 'thread' => $threadInfo]);
+        break;
+
+    // 메시지 전송 (학부모) — student_id 기반으로 스레드 자동 생성
+    case 'msg_send':
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+        $admin = requireAdmin(['parent']);
+        $parentPhone = $admin['parent_phone'];
+
+        $studentId = (int)($_POST['student_id'] ?? 0);
+        $body = trim($_POST['body'] ?? '');
+        if (!$studentId) jsonError('학생 ID가 필요합니다');
+        if (!$body && empty($_FILES['image'])) jsonError('메시지를 입력해 주세요');
+
+        // 권한: 자기 아이인지
+        $parentStudentIds = $admin['parent_student_ids'] ?? [];
+        if (!in_array($studentId, $parentStudentIds)) jsonError('접근 권한이 없습니다', 403);
+
+        $db = getDB();
+
+        // 학생의 주 반 조회
+        $stmt = $db->prepare('SELECT class_id FROM junior_class_students WHERE student_id = ? AND is_primary = 1 AND is_active = 1');
+        $stmt->execute([$studentId]);
+        $classId = (int)$stmt->fetchColumn();
+        if (!$classId) jsonError('학생의 반 정보를 찾을 수 없습니다');
+
+        // 스레드 찾기 또는 생성
+        $stmt = $db->prepare('SELECT id FROM junior_message_threads WHERE student_id = ? AND class_id = ? AND parent_phone = ?');
+        $stmt->execute([$studentId, $classId, $parentPhone]);
+        $threadId = (int)$stmt->fetchColumn();
+
+        if (!$threadId) {
+            $stmt = $db->prepare('INSERT INTO junior_message_threads (student_id, class_id, parent_phone, last_message_at) VALUES (?, ?, ?, NOW())');
+            $stmt->execute([$studentId, $classId, $parentPhone]);
+            $threadId = (int)$db->lastInsertId();
+        }
+
+        // 이미지 업로드
+        $imagePath = null;
+        if (!empty($_FILES['image']) && $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $imagePath = uploadImage($_FILES['image'], MSG_UPLOAD_DIR, (string)$threadId);
+        }
+
+        $stmt = $db->prepare('
+            INSERT INTO junior_messages (thread_id, sender_type, sender_phone, sender_name, body, image_path)
+            VALUES (?, "parent", ?, ?, ?, ?)
+        ');
+        $stmt->execute([$threadId, $parentPhone, $admin['admin_name'], $body ?: '', $imagePath]);
+        $msgId = (int)$db->lastInsertId();
+
+        // 스레드 마지막 메시지 시간 갱신
+        $stmt = $db->prepare('UPDATE junior_message_threads SET last_message_at = NOW() WHERE id = ?');
+        $stmt->execute([$threadId]);
+
+        // 읽음 갱신 (본인)
+        $stmt = $db->prepare('
+            INSERT INTO junior_message_reads (thread_id, reader_type, reader_phone, last_read_at)
+            VALUES (?, "parent", ?, NOW())
+            ON DUPLICATE KEY UPDATE last_read_at = NOW()
+        ');
+        $stmt->execute([$threadId, $parentPhone]);
+
+        jsonSuccess([
+            'message' => [
+                'id' => $msgId,
+                'sender_type' => 'parent',
+                'sender_name' => $admin['admin_name'],
+                'body' => $body ?: '',
+                'image_path' => $imagePath,
+                'created_at' => date('Y-m-d H:i:s'),
+            ],
+            'thread_id' => $threadId,
+        ], '메시지를 보냈습니다');
+        break;
+
+    // 스레드 읽음 처리
+    case 'msg_mark_read':
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+        $admin = requireAdmin(['parent']);
+        $input = getJsonInput();
+        $threadId = (int)($input['thread_id'] ?? 0);
+        if (!$threadId) jsonError('스레드 ID가 필요합니다');
+
+        $db = getDB();
+        verifyThreadAccessForParent($admin, $threadId);
+
+        $stmt = $db->prepare('
+            INSERT INTO junior_message_reads (thread_id, reader_type, reader_phone, last_read_at)
+            VALUES (?, "parent", ?, NOW())
+            ON DUPLICATE KEY UPDATE last_read_at = NOW()
+        ');
+        $stmt->execute([$threadId, $admin['parent_phone']]);
+        jsonSuccess([], '읽음 처리 되었습니다');
+        break;
+
+    // 안 읽은 메시지 + 공지 총 수
+    case 'msg_unread_total':
+        $admin = requireAdmin(['parent']);
+        $parentPhone = $admin['parent_phone'];
+        $parentStudentIds = $admin['parent_student_ids'] ?? [];
+        $db = getDB();
+
+        // 메시지 안 읽은 수
+        $stmt = $db->prepare("
+            SELECT COALESCE(SUM(sub.cnt), 0) as total_unread FROM (
+                SELECT (SELECT COUNT(*) FROM junior_messages m
+                        WHERE m.thread_id = t.id AND m.is_deleted = 0 AND m.sender_type = 'coach'
+                        AND m.created_at > COALESCE(
+                            (SELECT last_read_at FROM junior_message_reads
+                             WHERE thread_id = t.id AND reader_type = 'parent' AND reader_phone = ?),
+                            '1970-01-01'
+                        )) as cnt
+                FROM junior_message_threads t
+                WHERE t.parent_phone = ? AND t.is_active = 1
+            ) sub
+        ");
+        $stmt->execute([$parentPhone, $parentPhone]);
+        $unreadMsg = (int)$stmt->fetchColumn();
+
+        // 공지 안 읽은 수
+        $unreadAnn = 0;
+        if (!empty($parentStudentIds)) {
+            $placeholders = implode(',', array_fill(0, count($parentStudentIds), '?'));
+            $stmt = $db->prepare("
+                SELECT COUNT(*) FROM junior_announcements a
+                JOIN junior_class_students cs ON a.class_id = cs.class_id AND cs.is_active = 1
+                WHERE cs.student_id IN ($placeholders)
+                AND a.is_active = 1
+                AND NOT EXISTS (SELECT 1 FROM junior_announcement_reads ar WHERE ar.announcement_id = a.id AND ar.parent_phone = ?)
+            ");
+            $stmt->execute(array_merge($parentStudentIds, [$parentPhone]));
+            $unreadAnn = (int)$stmt->fetchColumn();
+        }
+
+        jsonSuccess(['unread_messages' => $unreadMsg, 'unread_announcements' => $unreadAnn]);
+        break;
+
+    // ============================================
+    // 공지사항 (학부모 측 — 읽기 전용)
+    // ============================================
+
+    // 메시지 이미지 서빙
+    case 'msg_image':
+        $admin = requireAdmin(['parent']);
+        $path = trim($_GET['path'] ?? '');
+        if (!$path) jsonError('경로가 필요합니다');
+        if (str_contains($path, '..') || str_starts_with($path, '/')) jsonError('잘못된 경로', 400);
+        $fullPath = MSG_UPLOAD_DIR . '/' . $path;
+        if (!file_exists($fullPath)) jsonError('파일을 찾을 수 없습니다', 404);
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        header('Content-Type: ' . $finfo->file($fullPath));
+        header('Cache-Control: private, max-age=86400');
+        readfile($fullPath);
+        exit;
+
+    // 공지 이미지 서빙
+    case 'ann_image':
+        $admin = requireAdmin(['parent']);
+        $path = trim($_GET['path'] ?? '');
+        if (!$path) jsonError('경로가 필요합니다');
+        if (str_contains($path, '..') || str_starts_with($path, '/')) jsonError('잘못된 경로', 400);
+        $fullPath = ANN_UPLOAD_DIR . '/' . $path;
+        if (!file_exists($fullPath)) jsonError('파일을 찾을 수 없습니다', 404);
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        header('Content-Type: ' . $finfo->file($fullPath));
+        header('Cache-Control: private, max-age=86400');
+        readfile($fullPath);
+        exit;
+
+    // 공지 목록 (내 아이 반)
+    case 'announcements':
+        $admin = requireAdmin(['parent']);
+        $parentPhone = $admin['parent_phone'];
+        $studentId = (int)($_GET['student_id'] ?? 0);
+        $parentStudentIds = $admin['parent_student_ids'] ?? [];
+
+        if ($studentId && !in_array($studentId, $parentStudentIds)) jsonError('접근 권한이 없습니다', 403);
+        $filterIds = $studentId ? [$studentId] : $parentStudentIds;
+        if (empty($filterIds)) jsonSuccess(['announcements' => []]);
+
+        $db = getDB();
+        $placeholders = implode(',', array_fill(0, count($filterIds), '?'));
+        $stmt = $db->prepare("
+            SELECT DISTINCT a.*, c.display_name as class_name,
+                   CASE WHEN ar.id IS NOT NULL THEN 1 ELSE 0 END as is_read
+            FROM junior_announcements a
+            JOIN junior_classes c ON a.class_id = c.id
+            JOIN junior_class_students cs ON a.class_id = cs.class_id AND cs.is_active = 1
+            LEFT JOIN junior_announcement_reads ar ON ar.announcement_id = a.id AND ar.parent_phone = ?
+            WHERE cs.student_id IN ($placeholders) AND a.is_active = 1
+            ORDER BY a.is_pinned DESC, a.created_at DESC
+        ");
+        $stmt->execute(array_merge([$parentPhone], $filterIds));
+        jsonSuccess(['announcements' => $stmt->fetchAll()]);
+        break;
+
+    // 공지 상세 + 읽음 처리
+    case 'announcement_detail':
+        $admin = requireAdmin(['parent']);
+        $parentPhone = $admin['parent_phone'];
+        $annId = (int)($_GET['announcement_id'] ?? 0);
+        if (!$annId) jsonError('공지 ID가 필요합니다');
+
+        $db = getDB();
+        // 권한: 내 아이 반의 공지인지
+        $parentStudentIds = $admin['parent_student_ids'] ?? [];
+        if (empty($parentStudentIds)) jsonError('접근 권한이 없습니다', 403);
+
+        $placeholders = implode(',', array_fill(0, count($parentStudentIds), '?'));
+        $stmt = $db->prepare("
+            SELECT a.*, c.display_name as class_name
+            FROM junior_announcements a
+            JOIN junior_classes c ON a.class_id = c.id
+            JOIN junior_class_students cs ON a.class_id = cs.class_id AND cs.is_active = 1
+            WHERE a.id = ? AND cs.student_id IN ($placeholders) AND a.is_active = 1
+            LIMIT 1
+        ");
+        $stmt->execute(array_merge([$annId], $parentStudentIds));
+        $ann = $stmt->fetch();
+        if (!$ann) jsonError('공지를 찾을 수 없습니다');
+
+        // 읽음 기록
+        $stmt = $db->prepare('
+            INSERT IGNORE INTO junior_announcement_reads (announcement_id, parent_phone)
+            VALUES (?, ?)
+        ');
+        $stmt->execute([$annId, $parentPhone]);
+
+        jsonSuccess(['announcement' => $ann]);
+        break;
+
     default:
         jsonError('알 수 없는 요청입니다', 404);
 }
@@ -557,6 +902,24 @@ switch ($action) {
 /**
  * 핑거프린트 저장/갱신 헬퍼
  */
+/**
+ * 학부모의 메시지 스레드 접근 권한 검증
+ */
+function verifyThreadAccessForParent(array $admin, int $threadId): array {
+    $db = getDB();
+    $stmt = $db->prepare('SELECT * FROM junior_message_threads WHERE id = ? AND parent_phone = ?');
+    $stmt->execute([$threadId, $admin['parent_phone']]);
+    $thread = $stmt->fetch();
+    if (!$thread) jsonError('접근 권한이 없습니다', 403);
+
+    // 추가: 학생이 내 아이인지
+    $parentStudentIds = $admin['parent_student_ids'] ?? [];
+    if (!in_array((int)$thread['student_id'], $parentStudentIds)) {
+        jsonError('접근 권한이 없습니다', 403);
+    }
+    return $thread;
+}
+
 function saveFingerprint(PDO $db, int $adminId, string $fingerprint, $deviceInfo = null): void {
     $deviceInfoJson = $deviceInfo ? (is_string($deviceInfo) ? $deviceInfo : json_encode($deviceInfo, JSON_UNESCAPED_UNICODE)) : null;
 

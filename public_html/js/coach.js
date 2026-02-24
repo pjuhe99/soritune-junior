@@ -117,6 +117,8 @@ const CoachApp = (() => {
             else if (tab === 'profile') loadProfileSelector();
             else if (tab === 'homework') loadHomeworkReport();
             else if (tab === 'ace') loadAcePending();
+            else if (tab === 'messages') loadMsgThreads();
+            else if (tab === 'announce') loadAnnList();
         });
 
         // 반 선택
@@ -126,6 +128,8 @@ const CoachApp = (() => {
             const tab = activeTab?.dataset?.tab || 'overview';
             if (tab === 'homework') loadHomeworkReport();
             else if (tab === 'ace') loadAcePending();
+            else if (tab === 'messages') loadMsgThreads();
+            else if (tab === 'announce') loadAnnList();
             else loadOverview();
         });
 
@@ -204,6 +208,9 @@ const CoachApp = (() => {
 
         currentClassId = classes.length > 0 ? classes[0].id : null;
         if (currentClassId) loadOverview();
+
+        // 안 읽은 메시지 배지 폴링 시작
+        startUnreadPolling();
     }
 
     // ============================================
@@ -1089,6 +1096,7 @@ const CoachApp = (() => {
     let hwData = null;
     let hwPeriod = 'weekly';
     let hwChart = null;
+    let hwSelectedIdx = -1; // -1 = auto (isCurrent)
 
     function esc(str) {
         const d = document.createElement('div');
@@ -1140,6 +1148,7 @@ const CoachApp = (() => {
         container.querySelectorAll('.hw-period-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 hwPeriod = btn.dataset.period;
+                hwSelectedIdx = -1; // 기간 변경 시 현재로 리셋
                 container.querySelectorAll('.hw-period-btn').forEach(b => b.classList.toggle('active', b === btn));
                 renderHwChart();
             });
@@ -1158,14 +1167,70 @@ const CoachApp = (() => {
         const color = info.color || '#FF7E17';
         const isDaily = hwPeriod === 'daily';
 
+        // 선택 인덱스 결정
+        if (hwSelectedIdx < 0 || hwSelectedIdx >= data.length) {
+            hwSelectedIdx = data.findIndex(d => d.isCurrent);
+            if (hwSelectedIdx < 0) hwSelectedIdx = data.length - 1;
+        }
+
         // 정보 박스
         const infoEl = document.getElementById('hw-info');
-        const currentIdx = data.findIndex(d => d.isCurrent);
-        if (currentIdx >= 0) {
-            const d = data[currentIdx];
-            infoEl.innerHTML = `<strong>${esc(info.name)}</strong>반 | <strong>${esc(labels[currentIdx])}</strong> | 달성률 <strong>${d.rate}%</strong> (${d.submitted}/${d.possible}건) | 필요 <strong>${d.required}일</strong>`;
+        const idx = hwSelectedIdx;
+        const hasPrev = idx > 0;
+        const hasNext = idx < data.length - 1;
+        const navBtnStyle = 'background:none; border:1.5px solid #E0E0E0; border-radius:8px; width:28px; height:28px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; color:#757575; font-weight:700;';
+
+        if (idx >= 0 && data[idx]) {
+            const d = data[idx];
+            const hasSoFar = d.rate_so_far !== undefined;
+            const rateColor = d.rate >= 80 ? '#4CAF50' : d.rate >= 50 ? '#FF9800' : '#F44336';
+            const soFarColor = hasSoFar ? (d.rate_so_far >= 80 ? '#4CAF50' : d.rate_so_far >= 50 ? '#FF9800' : '#F44336') : '';
+            const isCurrent = d.isCurrent;
+            infoEl.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <div style="font-size:15px; font-weight:700; color:#333;">${esc(info.name)}반</div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <button onclick="CoachApp.hwNav(-1)" style="${navBtnStyle} ${!hasPrev ? 'opacity:0.3; cursor:default;' : ''}" ${!hasPrev ? 'disabled' : ''}>◀</button>
+                        <div style="font-size:13px; font-weight:600; color:#555; min-width:70px; text-align:center;">${esc(labels[idx])}</div>
+                        <button onclick="CoachApp.hwNav(1)" style="${navBtnStyle} ${!hasNext ? 'opacity:0.3; cursor:default;' : ''}" ${!hasNext ? 'disabled' : ''}>▶</button>
+                    </div>
+                    ${!isCurrent ? '<button onclick="CoachApp.hwNav(0)" style="background:none; border:none; font-size:11px; color:#2196F3; cursor:pointer; font-weight:600; padding:2px 6px;">현재</button>' : ''}
+                    <button onclick="CoachApp.showHwHelp()" style="background:none; border:1.5px solid #BDBDBD; border-radius:50%; width:22px; height:22px; font-size:12px; color:#999; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1; font-weight:700;">?</button>
+                </div>
+                ${hasSoFar ? `
+                    <div style="font-size:13px; color:#999; margin-bottom:6px;">과제 완료율</div>
+                    <div style="display:flex; gap:16px; align-items:flex-start;">
+                        <div>
+                            <div style="display:flex; align-items:baseline; gap:4px;">
+                                <span style="font-size:28px; font-weight:900; color:${soFarColor};">${d.rate_so_far}%</span>
+                            </div>
+                            <div style="font-size:11px; color:#999; margin-top:2px;">오늘까지 (${d.submitted}/${d.possible_so_far}건)</div>
+                        </div>
+                        <div style="border-left:1px solid #E0E0E0; padding-left:16px;">
+                            <div style="display:flex; align-items:baseline; gap:4px;">
+                                <span style="font-size:28px; font-weight:900; color:${rateColor};">${d.rate}%</span>
+                            </div>
+                            <div style="font-size:11px; color:#999; margin-top:2px;">전체 기간 (${d.submitted}/${d.possible}건)</div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px; color:#757575; margin-top:6px;">학생 ${info.students}명 · 진행 ${d.elapsed_days}/${d.total_days}일</div>
+                ` : `
+                    <div style="font-size:13px; color:#999; margin-bottom:6px;">과제 완료율</div>
+                    <div style="display:flex; align-items:baseline; gap:6px;">
+                        <span style="font-size:28px; font-weight:900; color:${rateColor};">${d.rate}%</span>
+                        <span style="font-size:12px; color:#BDBDBD;">(${d.submitted}/${d.possible}건)</span>
+                    </div>
+                    <div style="font-size:12px; color:#757575; margin-top:4px;">학생 ${info.students}명 · 필요 <strong>${d.required}일</strong></div>
+                `}
+            `;
         } else {
-            infoEl.innerHTML = `<strong>${esc(info.name)}</strong>반 | 학생 ${info.students}명`;
+            infoEl.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                    <div style="font-size:15px; font-weight:700; color:#333;">${esc(info.name)}반</div>
+                    <button onclick="CoachApp.showHwHelp()" style="background:none; border:1.5px solid #BDBDBD; border-radius:50%; width:22px; height:22px; font-size:12px; color:#999; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1; font-weight:700;">?</button>
+                </div>
+                <div style="font-size:13px; color:#999;">학생 ${info.students}명</div>
+            `;
         }
 
         // 차트
@@ -1178,7 +1243,7 @@ const CoachApp = (() => {
             data: {
                 labels: labels.map((l, i) => data[i]?.isCurrent ? l + ' *' : l),
                 datasets: [{
-                    label: info.name + '반 달성률',
+                    label: info.name + '반 과제 완료율',
                     data: data.map(d => d.rate),
                     borderColor: color,
                     backgroundColor: color + '20',
@@ -1208,7 +1273,7 @@ const CoachApp = (() => {
                         callbacks: {
                             label: function(ctx) {
                                 const d = data[ctx.dataIndex];
-                                return d ? `달성률: ${d.rate}% (${d.submitted}/${d.possible}건)` : ctx.parsed.y + '%';
+                                return d ? `과제 완료율: ${d.rate}% (${d.submitted}/${d.possible}건)` : ctx.parsed.y + '%';
                             },
                             afterLabel: function(ctx) {
                                 const d = data[ctx.dataIndex];
@@ -1234,6 +1299,47 @@ const CoachApp = (() => {
                 },
             },
         });
+    }
+
+    function hwNav(dir) {
+        if (!hwData) return;
+        const pd = hwData[hwPeriod];
+        if (!pd) return;
+        if (dir === 0) {
+            // "현재" 버튼 → isCurrent로 복귀
+            hwSelectedIdx = -1;
+        } else {
+            const newIdx = hwSelectedIdx + dir;
+            if (newIdx < 0 || newIdx >= pd.data.length) return;
+            hwSelectedIdx = newIdx;
+        }
+        renderHwChart();
+    }
+
+    function showHwHelp() {
+        App.openModal('과제 완료율 안내', `
+            <div style="font-size:14px; line-height:1.8; color:#333;">
+                <div style="font-weight:700; color:#FF7E17; margin-bottom:8px;">과제 완료율이란?</div>
+                <div style="margin-bottom:14px;">반 학생들의 <strong>소리과제 제출률</strong>을 기간별로 보여줍니다.</div>
+                <div style="background:#F5F5F5; border-radius:10px; padding:12px; margin-bottom:10px;">
+                    <div style="font-weight:600; margin-bottom:6px;">오늘까지 기준</div>
+                    <div style="font-size:13px; color:#555;">제출 건수 ÷ (학생 수 × <strong>경과일 수</strong>) × 100</div>
+                    <div style="font-size:12px; color:#999; margin-top:2px;">현재까지 지나간 날만 분모로 계산합니다.</div>
+                </div>
+                <div style="background:#F5F5F5; border-radius:10px; padding:12px; margin-bottom:14px;">
+                    <div style="font-weight:600; margin-bottom:6px;">전체 기간 기준</div>
+                    <div style="font-size:13px; color:#555;">제출 건수 ÷ (학생 수 × <strong>필요일 수</strong>) × 100</div>
+                    <div style="font-size:12px; color:#999; margin-top:2px;">남은 날을 포함한 전체 기간을 분모로 계산합니다.</div>
+                </div>
+                <div style="font-size:13px; color:#555;">
+                    <div style="margin-bottom:6px;"><strong>제출 건수</strong>: 학생들이 실제로 소리과제를 제출한 횟수</div>
+                    <div style="margin-bottom:6px;"><strong>경과일 수</strong>: 해당 기간의 시작일부터 오늘까지 지난 날수</div>
+                    <div style="margin-bottom:6px;"><strong>필요일 수</strong>: 주간 캘린더에 설정된 전체 과제 요구 일수</div>
+                    <div><strong>◀ ▶</strong>: 이전/다음 기간으로 이동하여 비교할 수 있습니다</div>
+                </div>
+                <div style="font-size:12px; color:#BDBDBD; margin-top:10px;">* 이미 종료된 기간은 두 값이 동일하므로 하나만 표시됩니다.</div>
+            </div>
+        `);
     }
 
     async function loadHwAlerts() {
@@ -1921,6 +2027,377 @@ const CoachApp = (() => {
     }
 
     // ============================================
+    // 탭7: 메시지 (코치 ↔ 학부모 1:1)
+    // ============================================
+    let msgCurrentThreadId = null;
+    let msgPollingTimer = null;
+
+    async function loadMsgThreads() {
+        const container = document.getElementById('msg-content');
+        container.innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="display:inline-block;"></div></div>';
+
+        const classFilter = currentClassId ? `&class_id=${currentClassId}` : '';
+        const result = await App.get('/api/coach.php?action=msg_threads' + classFilter);
+        if (!result.success) {
+            container.innerHTML = '<div style="text-align:center; padding:40px; color:#F44336;">데이터를 불러올 수 없습니다</div>';
+            return;
+        }
+
+        if (!result.threads || result.threads.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-text">아직 학부모 메시지가 없습니다</div></div>';
+            updateUnreadBadge();
+            return;
+        }
+
+        container.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                ${result.threads.map(t => {
+                    const unread = parseInt(t.unread_count) || 0;
+                    const lastMsg = t.last_message || '';
+                    const preview = lastMsg.length > 30 ? lastMsg.substring(0, 30) + '...' : lastMsg;
+                    const timeStr = t.last_message_at ? formatMsgTime(t.last_message_at) : '';
+                    return `
+                        <div class="card" style="cursor:pointer; padding:14px; transition:all .15s;" onclick="CoachApp.openMsgThread(${t.thread_id})">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div style="width:42px; height:42px; border-radius:50%; background:#E3F2FD; color:#1565C0; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; flex-shrink:0;">
+                                    ${t.student_name.charAt(0)}
+                                </div>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-weight:700; font-size:14px;">${t.student_name}</span>
+                                        <span style="font-size:11px; color:#999;">${t.class_name}</span>
+                                    </div>
+                                    <div style="font-size:12px; color:#757575; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${preview || '대화를 시작해 보세요'}</div>
+                                </div>
+                                <div style="text-align:right; flex-shrink:0;">
+                                    <div style="font-size:10px; color:#999;">${timeStr}</div>
+                                    ${unread > 0 ? `<div style="background:#F44336; color:#fff; border-radius:12px; padding:2px 8px; font-size:11px; font-weight:700; margin-top:4px;">${unread}건</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        // 레드닷도 함께 갱신
+        updateUnreadBadge();
+    }
+
+    async function openMsgThread(threadId) {
+        msgCurrentThreadId = threadId;
+        const container = document.getElementById('msg-content');
+        container.innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="display:inline-block;"></div></div>';
+
+        const result = await App.get(`/api/coach.php?action=msg_thread_detail&thread_id=${threadId}`);
+        if (!result.success) return;
+
+        const { messages, thread } = result;
+        const threadInfo = thread || {};
+
+        container.innerHTML = `
+            <div style="margin-bottom:12px;">
+                <button class="btn btn-secondary btn-sm" onclick="CoachApp.loadMsgThreads()">\u2190 목록</button>
+                <span style="font-weight:700; margin-left:8px;">${threadInfo.student_name || ''}</span>
+                <span style="font-size:12px; color:#999; margin-left:4px;">${threadInfo.class_name || ''}</span>
+            </div>
+            <div id="msg-chat-area" style="max-height:60vh; overflow-y:auto; padding:8px; background:#F5F5F5; border-radius:12px; margin-bottom:12px;">
+                ${messages.length === 0 ? '<div style="text-align:center; padding:40px; color:#999;">메시지가 없습니다. 먼저 대화를 시작해 보세요!</div>' :
+                    messages.map(m => renderChatBubble(m, 'coach')).join('')}
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+                <label style="cursor:pointer; flex-shrink:0; padding:10px; background:#E3F2FD; border-radius:10px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <input type="file" id="msg-image-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
+                </label>
+                <div style="flex:1; position:relative;">
+                    <textarea id="msg-text-input" placeholder="메시지를 입력하세요" rows="1" style="width:100%; padding:10px 14px; border:1.5px solid #E0E0E0; border-radius:12px; font-size:14px; resize:none; font-family:inherit; box-sizing:border-box;"></textarea>
+                    <div id="msg-image-preview" style="display:none; margin-top:4px;"></div>
+                </div>
+                <button class="btn" id="msg-send-btn" style="background:#2196F3; color:#fff; padding:10px 16px; border-radius:12px; font-weight:700; flex-shrink:0;">전송</button>
+            </div>
+        `;
+
+        // 스크롤 하단으로
+        const chatArea = document.getElementById('msg-chat-area');
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        // 읽음 처리 후 배지 갱신
+        updateUnreadBadge();
+
+        // 이미지 미리보기
+        document.getElementById('msg-image-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const preview = document.getElementById('msg-image-preview');
+            if (file) {
+                const url = URL.createObjectURL(file);
+                preview.style.display = 'block';
+                preview.innerHTML = '<div style="display:inline-block; position:relative;"><img src="' + url + '" style="max-height:60px; border-radius:8px;"><button onclick="document.getElementById(\'msg-image-input\').value=\'\'; document.getElementById(\'msg-image-preview\').style.display=\'none\';" style="position:absolute; top:-6px; right:-6px; background:#F44336; color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; line-height:20px;">&times;</button></div>';
+            } else {
+                preview.style.display = 'none';
+                preview.innerHTML = '';
+            }
+        });
+
+        // 전송 이벤트
+        document.getElementById('msg-send-btn').addEventListener('click', () => sendCoachMsg(threadId));
+        document.getElementById('msg-text-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCoachMsg(threadId); }
+        });
+
+        // 폴링 시작
+        startMsgPolling(threadId);
+    }
+
+    async function sendCoachMsg(threadId) {
+        const textEl = document.getElementById('msg-text-input');
+        const imageEl = document.getElementById('msg-image-input');
+        const body = textEl.value.trim();
+        const file = imageEl.files[0];
+
+        if (!body && !file) return;
+
+        const fd = new FormData();
+        fd.append('thread_id', threadId);
+        fd.append('body', body);
+        if (file) fd.append('image', file);
+
+        const result = await App.post('/api/coach.php?action=msg_send', fd);
+        if (result.success && result.message) {
+            const chatArea = document.getElementById('msg-chat-area');
+            // 빈 상태 메시지 제거
+            const empty = chatArea.querySelector('.empty-state, [style*="text-align:center"]');
+            if (empty && chatArea.children.length === 1) chatArea.innerHTML = '';
+            chatArea.insertAdjacentHTML('beforeend', renderChatBubble(result.message, 'coach'));
+            chatArea.scrollTop = chatArea.scrollHeight;
+            textEl.value = '';
+            imageEl.value = '';
+            document.getElementById('msg-image-preview').style.display = 'none';
+            document.getElementById('msg-image-preview').innerHTML = '';
+        }
+    }
+
+    function renderChatBubble(msg, myType) {
+        const isMine = msg.sender_type === myType;
+        const align = isMine ? 'flex-end' : 'flex-start';
+        const bgColor = isMine ? '#2196F3' : '#fff';
+        const textColor = isMine ? '#fff' : '#333';
+        const borderStyle = isMine ? '' : 'border:1px solid #E0E0E0;';
+        const time = msg.created_at ? msg.created_at.slice(11, 16) : '';
+        const imgHtml = msg.image_path ? `<img src="/api/coach.php?action=msg_image&path=${encodeURIComponent(msg.image_path)}" style="max-width:200px; border-radius:8px; margin-bottom:4px; cursor:pointer; display:block;" onclick="window.open(this.src)">` : '';
+        const bodyHtml = msg.body ? `<div style="word-break:break-word;">${escapeHtml(msg.body)}</div>` : '';
+        return `
+            <div style="display:flex; flex-direction:column; align-items:${align}; margin-bottom:8px;">
+                ${!isMine ? `<div style="font-size:11px; color:#999; margin-bottom:2px;">${escapeHtml(msg.sender_name)}</div>` : ''}
+                <div style="max-width:75%; padding:10px 14px; border-radius:14px; background:${bgColor}; color:${textColor}; font-size:14px; ${borderStyle}">
+                    ${imgHtml}${bodyHtml}
+                </div>
+                <div style="font-size:10px; color:#BDBDBD; margin-top:2px;">${time}</div>
+            </div>
+        `;
+    }
+
+    function startMsgPolling(threadId) {
+        stopMsgPolling();
+        msgPollingTimer = setInterval(async () => {
+            if (document.hidden || msgCurrentThreadId !== threadId) return;
+            const chatArea = document.getElementById('msg-chat-area');
+            if (!chatArea) return;
+            const lastMsgEl = chatArea.querySelector('[data-msg-id]');
+            // 간단한 방법: 전체 새로고침 대신 새 메시지만 확인
+            const result = await App.get(`/api/coach.php?action=msg_thread_detail&thread_id=${threadId}&limit=5`, null);
+            if (result.success && result.messages) {
+                const existingIds = new Set([...chatArea.querySelectorAll('[data-msg-id]')].map(el => el.dataset.msgId));
+                const newMsgs = result.messages.filter(m => !existingIds.has(String(m.id)));
+                if (newMsgs.length > 0) {
+                    newMsgs.forEach(m => {
+                        chatArea.insertAdjacentHTML('beforeend', renderChatBubble(m, 'coach').replace('<div style="display:flex', `<div data-msg-id="${m.id}" style="display:flex`));
+                    });
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                }
+            }
+        }, 15000); // 15초
+    }
+
+    function stopMsgPolling() {
+        if (msgPollingTimer) { clearInterval(msgPollingTimer); msgPollingTimer = null; }
+    }
+
+    // ============================================
+    // 안 읽은 메시지 배지 (메시지 탭 버튼)
+    // ============================================
+    let unreadPollingTimer = null;
+
+    function startUnreadPolling() {
+        updateUnreadBadge();
+        unreadPollingTimer = setInterval(() => {
+            if (!document.hidden) updateUnreadBadge();
+        }, 30000); // 30초
+    }
+
+    async function updateUnreadBadge() {
+        try {
+            const result = await App.get('/api/coach.php?action=msg_unread_total');
+            if (!result.success) return;
+            const total = result.unread_messages || 0;
+            const dot = document.getElementById('msg-tab-dot');
+            if (dot) {
+                dot.style.display = total > 0 ? 'block' : 'none';
+            }
+        } catch(e) {}
+    }
+
+    function formatMsgTime(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr.replace(' ', 'T'));
+        const now = new Date();
+        const diff = now - d;
+        if (diff < 60000) return '방금';
+        if (diff < 3600000) return Math.floor(diff/60000) + '분 전';
+        if (diff < 86400000) return d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+        if (diff < 172800000) return '어제';
+        return (d.getMonth()+1) + '/' + d.getDate();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ============================================
+    // 탭8: 공지사항 (코치 → 학부모)
+    // ============================================
+
+    async function loadAnnList() {
+        if (!currentClassId) {
+            document.getElementById('ann-content').innerHTML = '<div class="empty-state"><div class="empty-state-text">반을 선택해 주세요</div></div>';
+            return;
+        }
+
+        const container = document.getElementById('ann-content');
+        container.innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="display:inline-block;"></div></div>';
+
+        const result = await App.get('/api/coach.php?action=ann_list&class_id=' + currentClassId);
+        if (!result.success) {
+            container.innerHTML = '<div style="text-align:center; padding:40px; color:#F44336;">데이터를 불러올 수 없습니다</div>';
+            return;
+        }
+
+        const parentCount = result.parent_count || 0;
+        const anns = result.announcements || [];
+
+        container.innerHTML = `
+            <div style="margin-bottom:16px;">
+                <button class="btn" onclick="CoachApp.openAnnForm()" style="background:#2196F3; color:#fff; font-weight:700; padding:10px 20px; border-radius:12px;">
+                    + 새 공지 작성
+                </button>
+            </div>
+            ${anns.length === 0 ? '<div class="empty-state"><div class="empty-state-text">등록된 공지가 없습니다</div></div>' :
+                `<div style="display:flex; flex-direction:column; gap:10px;">
+                    ${anns.map(a => {
+                        const readCount = parseInt(a.read_count) || 0;
+                        const pinBadge = parseInt(a.is_pinned) ? '<span style="background:#FF9800; color:#fff; padding:1px 6px; border-radius:6px; font-size:10px; font-weight:700; margin-left:6px;">고정</span>' : '';
+                        return `
+                            <div class="card" style="padding:14px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                                    <div style="font-weight:700; font-size:15px;">${escapeHtml(a.title)}${pinBadge}</div>
+                                    <button onclick="CoachApp.deleteAnn(${a.id})" style="background:none; border:none; color:#F44336; font-size:12px; cursor:pointer; padding:4px 8px;">삭제</button>
+                                </div>
+                                <div style="font-size:13px; color:#555; margin-bottom:8px; white-space:pre-wrap;">${escapeHtml(a.body)}</div>
+                                ${a.image_path ? `<img src="/api/coach.php?action=ann_image&path=${encodeURIComponent(a.image_path)}" style="max-width:100%; border-radius:8px; margin-bottom:8px; cursor:pointer;" onclick="window.open(this.src)">` : ''}
+                                <div style="display:flex; align-items:center; justify-content:space-between; font-size:11px; color:#999;">
+                                    <span>${a.created_at ? a.created_at.slice(0, 16) : ''}</span>
+                                    <span style="cursor:pointer; color:#2196F3;" onclick="CoachApp.viewAnnReads(${a.id})">${readCount}/${parentCount}명 읽음</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>`
+            }
+        `;
+    }
+
+    function openAnnForm() {
+        if (!currentClassId) { Toast.warning('반을 먼저 선택해 주세요'); return; }
+        const container = document.getElementById('ann-content');
+        container.innerHTML = `
+            <div style="margin-bottom:12px;">
+                <button class="btn btn-secondary btn-sm" onclick="CoachApp.loadAnnList()">\u2190 목록</button>
+            </div>
+            <div class="card" style="padding:20px;">
+                <div style="font-size:18px; font-weight:700; margin-bottom:16px;">새 공지 작성</div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label class="form-label">제목</label>
+                    <input type="text" id="ann-title" class="form-input" placeholder="공지 제목" maxlength="200">
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label class="form-label">내용</label>
+                    <textarea id="ann-body" class="form-input" placeholder="공지 내용을 입력하세요" rows="5" style="resize:vertical;"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label class="form-label">이미지 (선택)</label>
+                    <input type="file" id="ann-image" accept="image/jpeg,image/png,image/webp" class="form-input">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                        <input type="checkbox" id="ann-pinned"> 상단 고정
+                    </label>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="CoachApp.submitAnn()" style="background:#2196F3;">공지 등록</button>
+            </div>
+        `;
+    }
+
+    async function submitAnn() {
+        const title = document.getElementById('ann-title').value.trim();
+        const body = document.getElementById('ann-body').value.trim();
+        const imageFile = document.getElementById('ann-image').files[0];
+        const isPinned = document.getElementById('ann-pinned').checked ? 1 : 0;
+
+        if (!title) { Toast.warning('제목을 입력해 주세요'); return; }
+        if (!body) { Toast.warning('내용을 입력해 주세요'); return; }
+
+        const fd = new FormData();
+        fd.append('class_id', currentClassId);
+        fd.append('title', title);
+        fd.append('body', body);
+        fd.append('is_pinned', isPinned);
+        if (imageFile) fd.append('image', imageFile);
+
+        App.showLoading();
+        const result = await App.post('/api/coach.php?action=ann_create', fd);
+        App.hideLoading();
+
+        if (result.success) {
+            Toast.success('공지가 등록되었습니다');
+            loadAnnList();
+        }
+    }
+
+    async function deleteAnn(annId) {
+        App.confirm('이 공지를 삭제하시겠습니까?', async () => {
+            const result = await App.post('/api/coach.php?action=ann_delete', { announcement_id: annId });
+            if (result.success) {
+                Toast.success('공지가 삭제되었습니다');
+                loadAnnList();
+            }
+        }, { formal: true });
+    }
+
+    async function viewAnnReads(annId) {
+        const result = await App.get('/api/coach.php?action=ann_read_status&announcement_id=' + annId);
+        if (!result.success) return;
+
+        const readList = (result.read || []).map(r => `<div style="padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:13px;">📱 ${r.parent_phone.slice(-4)} <span style="color:#999; font-size:11px; margin-left:8px;">${r.read_at ? r.read_at.slice(0,16) : ''}</span></div>`).join('');
+        const unreadList = (result.unread || []).map(u => `<div style="padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:13px; color:#999;">${u.student_name} 부모님 (미확인)</div>`).join('');
+
+        App.openModal(`읽음 현황 (${result.read_count}/${result.total}명)`, `
+            ${readList ? `<div style="margin-bottom:12px;"><div style="font-weight:600; color:#4CAF50; margin-bottom:4px;">확인한 학부모</div>${readList}</div>` : ''}
+            ${unreadList ? `<div><div style="font-weight:600; color:#F44336; margin-bottom:4px;">미확인 학부모</div>${unreadList}</div>` : ''}
+        `);
+    }
+
+    // ============================================
     // 시작
     // ============================================
     document.addEventListener('DOMContentLoaded', init);
@@ -1933,5 +2410,11 @@ const CoachApp = (() => {
         selectCommentType, submitAceEval, copyReportLink,
         // Bravo exports
         openBravoEval, playBravoAudio, confirmBravo,
+        // Homework exports
+        showHwHelp, hwNav,
+        // Message exports
+        loadMsgThreads, openMsgThread, sendCoachMsg,
+        // Announcement exports
+        loadAnnList, openAnnForm, submitAnn, deleteAnn, viewAnnReads,
     };
 })();

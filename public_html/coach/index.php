@@ -10,11 +10,11 @@ header('Expires: 0');
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#2196F3">
     <title>코치 대시보드 - 소리튠 주니어</title>
-    <link rel="stylesheet" href="/css/common.css?v=20260219d">
-    <link rel="stylesheet" href="/css/toast.css?v=20260219d">
-    <link rel="stylesheet" href="/css/coach.css?v=20260222">
+    <link rel="stylesheet" href="/css/common.css?v=20260223f">
+    <link rel="stylesheet" href="/css/toast.css?v=20260223f">
+    <link rel="stylesheet" href="/css/coach.css?v=20260223f">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="/css/admin-dock.css?v=20260219d">
+    <link rel="stylesheet" href="/css/admin-dock.css?v=20260223f">
 </head>
 <body class="coach-page">
     <div class="app-container" id="app">
@@ -102,6 +102,8 @@ header('Expires: 0');
                     <button class="tab-btn" data-tab="qr">QR 출석</button>
                     <button class="tab-btn" data-tab="profile">학생 프로필</button>
                     <button class="tab-btn" data-tab="ace">테스트 평가</button>
+                    <button class="tab-btn" data-tab="messages" style="position:relative;">메시지<span id="msg-tab-dot" style="display:none; position:absolute; top:4px; right:4px; width:8px; height:8px; background:#F44336; border-radius:50%;"></span></button>
+                    <button class="tab-btn" data-tab="announce">공지</button>
                 </div>
 
                 <!-- 탭1: 반 현황 -->
@@ -146,13 +148,23 @@ header('Expires: 0');
                 <div class="tab-content" id="tab-ace">
                     <div id="ace-content"></div>
                 </div>
+
+                <!-- 탭7: 메시지 -->
+                <div class="tab-content" id="tab-messages">
+                    <div id="msg-content"></div>
+                </div>
+
+                <!-- 탭8: 공지 -->
+                <div class="tab-content" id="tab-announce">
+                    <div id="ann-content"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="/js/toast.js?v=20260219d"></script>
-    <script src="/js/common.js?v=20260219d"></script>
-    <script src="/js/fingerprint.js?v=20260219d"></script>
+    <script src="/js/toast.js?v=20260223f"></script>
+    <script src="/js/common.js?v=20260223f"></script>
+    <script src="/js/fingerprint.js?v=20260223f"></script>
     <script>
     // 시스템관리자 대행 로그인 체크 (시스템관리자 세션이 있으면 항상 표시)
     (async () => {
@@ -190,7 +202,7 @@ header('Expires: 0');
         }
     }
     </script>
-    <script src="/js/coach.js?v=20260222"></script>
+    <script src="/js/coach.js?v=20260223f"></script>
     <script src="/js/admin-dock.js?v=20260220c" data-adock-active="coach"></script>
 </body>
 </html>

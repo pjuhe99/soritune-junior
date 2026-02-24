@@ -1158,38 +1158,69 @@ switch ($action) {
             if ($type === 'weekly') {
                 foreach ($weeks as $w) {
                     $dates = [];
+                    $datesUntilToday = [];
                     $d = $w['week_start'];
-                    while ($d <= $w['week_end']) { $dates[] = $d; $d = date('Y-m-d', strtotime($d . ' +1 day')); }
+                    while ($d <= $w['week_end']) {
+                        $dates[] = $d;
+                        if ($d <= $today) $datesUntilToday[] = $d;
+                        $d = date('Y-m-d', strtotime($d . ' +1 day'));
+                    }
                     $s = (int)date('n', strtotime($w['week_start'])) . '/' . (int)date('j', strtotime($w['week_start']));
                     $e = (int)date('n', strtotime($w['week_end'])) . '/' . (int)date('j', strtotime($w['week_end']));
                     $req = (int)$w['required_count'];
                     $submitted = 0;
                     foreach ($dates as $d) $submitted += $hwByDate[$d] ?? 0;
                     $possible = $total * $req;
-                    $periods[] = [
+                    $isCurrent = ($today >= $w['week_start'] && $today <= $w['week_end']);
+                    $entry = [
                         'label' => $s . '~' . $e, 'submitted' => $submitted, 'possible' => $possible,
                         'rate' => $possible > 0 ? round($submitted / $possible * 100, 1) : 0,
-                        'required' => $req, 'isCurrent' => ($today >= $w['week_start'] && $today <= $w['week_end']),
+                        'required' => $req, 'isCurrent' => $isCurrent,
                     ];
+                    // 진행 중인 기간: 오늘까지 기준 값도 추가
+                    if ($isCurrent && count($datesUntilToday) < count($dates)) {
+                        $elapsedDays = count($datesUntilToday);
+                        $possibleSoFar = $total * $elapsedDays;
+                        $entry['elapsed_days'] = $elapsedDays;
+                        $entry['total_days'] = count($dates);
+                        $entry['possible_so_far'] = $possibleSoFar;
+                        $entry['rate_so_far'] = $possibleSoFar > 0 ? round($submitted / $possibleSoFar * 100, 1) : 0;
+                    }
+                    $periods[] = $entry;
                 }
             } elseif ($type === 'monthly') {
                 $monthGroups = [];
                 foreach ($weeks as $w) { $monthGroups[date('Y-m', strtotime($w['week_start']))][] = $w; }
                 foreach ($monthGroups as $mk => $mWeeks) {
                     $totalReq = 0; $submitted = 0; $isCurrent = false;
+                    $allDates = []; $datesUntilToday = [];
                     foreach ($mWeeks as $w) {
                         $totalReq += (int)$w['required_count'];
                         if ($today >= $w['week_start'] && $today <= $w['week_end']) $isCurrent = true;
                         $d = $w['week_start'];
-                        while ($d <= $w['week_end']) { $submitted += $hwByDate[$d] ?? 0; $d = date('Y-m-d', strtotime($d . ' +1 day')); }
+                        while ($d <= $w['week_end']) {
+                            $allDates[] = $d;
+                            if ($d <= $today) $datesUntilToday[] = $d;
+                            $submitted += $hwByDate[$d] ?? 0;
+                            $d = date('Y-m-d', strtotime($d . ' +1 day'));
+                        }
                     }
                     if (date('Y-m') === $mk) $isCurrent = true;
                     $possible = $total * $totalReq;
-                    $periods[] = [
+                    $entry = [
                         'label' => (int)date('n', strtotime($mk . '-01')) . '월', 'submitted' => $submitted, 'possible' => $possible,
                         'rate' => $possible > 0 ? round($submitted / $possible * 100, 1) : 0,
                         'required' => $totalReq, 'isCurrent' => $isCurrent,
                     ];
+                    if ($isCurrent && count($datesUntilToday) < count($allDates)) {
+                        $elapsedDays = count($datesUntilToday);
+                        $possibleSoFar = $total * $elapsedDays;
+                        $entry['elapsed_days'] = $elapsedDays;
+                        $entry['total_days'] = count($allDates);
+                        $entry['possible_so_far'] = $possibleSoFar;
+                        $entry['rate_so_far'] = $possibleSoFar > 0 ? round($submitted / $possibleSoFar * 100, 1) : 0;
+                    }
+                    $periods[] = $entry;
                 }
             } elseif ($type === 'daily') {
                 foreach ($weeks as $w) {
@@ -1293,6 +1324,348 @@ switch ($action) {
         jsonSuccess(['alerts' => $alerts]);
         break;
 
+    // ============================================
+    // 메시지 기능 (코치 ↔ 학부모 1:1)
+    // ============================================
+
+    // 내 반 대화 스레드 목록
+    case 'msg_threads':
+        $admin = requireAdmin(['coach']);
+        $classId = (int)($_GET['class_id'] ?? 0);
+        $db = getDB();
+
+        // 코치 담당 반 ID 목록
+        $stmt = $db->prepare('SELECT class_id FROM junior_admin_classes WHERE admin_id = ? AND is_active = 1');
+        $stmt->execute([$admin['admin_id']]);
+        $myClassIds = array_column($stmt->fetchAll(), 'class_id');
+        if (empty($myClassIds)) jsonSuccess(['threads' => []]);
+
+        // 특정 반 필터
+        if ($classId && !in_array($classId, $myClassIds)) jsonError('접근 권한이 없습니다', 403);
+        $filterIds = $classId ? [$classId] : $myClassIds;
+        $placeholders = implode(',', array_fill(0, count($filterIds), '?'));
+
+        $stmt = $db->prepare("
+            SELECT t.id as thread_id, t.student_id, t.class_id, t.parent_phone, t.last_message_at,
+                   s.name as student_name, c.display_name as class_name,
+                   (SELECT body FROM junior_messages WHERE thread_id = t.id AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1) as last_message,
+                   (SELECT COUNT(*) FROM junior_messages m
+                    WHERE m.thread_id = t.id AND m.is_deleted = 0 AND m.sender_type = 'parent'
+                    AND m.created_at > COALESCE(
+                        (SELECT last_read_at FROM junior_message_reads
+                         WHERE thread_id = t.id AND reader_type = 'coach' AND reader_id = ?),
+                        '1970-01-01'
+                    )) as unread_count
+            FROM junior_message_threads t
+            JOIN junior_students s ON t.student_id = s.id
+            JOIN junior_classes c ON t.class_id = c.id
+            WHERE t.class_id IN ($placeholders) AND t.is_active = 1
+            ORDER BY t.last_message_at DESC
+        ");
+        $stmt->execute(array_merge([$admin['admin_id']], $filterIds));
+        jsonSuccess(['threads' => $stmt->fetchAll()]);
+        break;
+
+    // 스레드 메시지 조회
+    case 'msg_thread_detail':
+        $admin = requireAdmin(['coach']);
+        $threadId = (int)($_GET['thread_id'] ?? 0);
+        $beforeId = (int)($_GET['before_id'] ?? 0);
+        $limit = min(50, max(10, (int)($_GET['limit'] ?? 30)));
+        if (!$threadId) jsonError('스레드 ID가 필요합니다');
+
+        $db = getDB();
+        $thread = verifyThreadAccessForCoach($admin['admin_id'], $threadId);
+
+        $sql = 'SELECT id, sender_type, sender_name, body, image_path, created_at
+                FROM junior_messages WHERE thread_id = ? AND is_deleted = 0';
+        $params = [$threadId];
+        if ($beforeId) { $sql .= ' AND id < ?'; $params[] = $beforeId; }
+        $sql .= ' ORDER BY created_at DESC LIMIT ?';
+        $params[] = $limit;
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $messages = array_reverse($stmt->fetchAll()); // 오래된 것부터
+
+        // 읽음 갱신
+        $stmt = $db->prepare('
+            INSERT INTO junior_message_reads (thread_id, reader_type, reader_id, last_read_at)
+            VALUES (?, "coach", ?, NOW())
+            ON DUPLICATE KEY UPDATE last_read_at = NOW()
+        ');
+        $stmt->execute([$threadId, $admin['admin_id']]);
+
+        // 스레드 정보
+        $stmt = $db->prepare('SELECT s.name as student_name, c.display_name as class_name
+                              FROM junior_message_threads t
+                              JOIN junior_students s ON t.student_id = s.id
+                              JOIN junior_classes c ON t.class_id = c.id WHERE t.id = ?');
+        $stmt->execute([$threadId]);
+        $threadInfo = $stmt->fetch();
+
+        jsonSuccess(['messages' => $messages, 'thread' => $threadInfo]);
+        break;
+
+    // 메시지 전송 (코치)
+    case 'msg_send':
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+        $admin = requireAdmin(['coach']);
+
+        // FormData 지원 (이미지 첨부)
+        $threadId = (int)($_POST['thread_id'] ?? 0);
+        $body = trim($_POST['body'] ?? '');
+        if (!$threadId) jsonError('스레드 ID가 필요합니다');
+        if (!$body && empty($_FILES['image'])) jsonError('메시지를 입력해 주세요');
+
+        $db = getDB();
+        $thread = verifyThreadAccessForCoach($admin['admin_id'], $threadId);
+
+        // 이미지 업로드
+        $imagePath = null;
+        if (!empty($_FILES['image']) && $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $imagePath = uploadImage($_FILES['image'], MSG_UPLOAD_DIR, (string)$threadId);
+        }
+
+        $stmt = $db->prepare('
+            INSERT INTO junior_messages (thread_id, sender_type, sender_id, sender_name, body, image_path)
+            VALUES (?, "coach", ?, ?, ?, ?)
+        ');
+        $stmt->execute([$threadId, $admin['admin_id'], $admin['admin_name'], $body ?: '', $imagePath]);
+        $msgId = (int)$db->lastInsertId();
+
+        // 스레드 마지막 메시지 시간 갱신
+        $stmt = $db->prepare('UPDATE junior_message_threads SET last_message_at = NOW() WHERE id = ?');
+        $stmt->execute([$threadId]);
+
+        // 읽음 갱신 (본인 메시지이므로)
+        $stmt = $db->prepare('
+            INSERT INTO junior_message_reads (thread_id, reader_type, reader_id, last_read_at)
+            VALUES (?, "coach", ?, NOW())
+            ON DUPLICATE KEY UPDATE last_read_at = NOW()
+        ');
+        $stmt->execute([$threadId, $admin['admin_id']]);
+
+        jsonSuccess([
+            'message' => [
+                'id' => $msgId,
+                'sender_type' => 'coach',
+                'sender_name' => $admin['admin_name'],
+                'body' => $body ?: '',
+                'image_path' => $imagePath,
+                'created_at' => date('Y-m-d H:i:s'),
+            ]
+        ], '메시지를 보냈습니다');
+        break;
+
+    // 스레드 읽음 처리
+    case 'msg_mark_read':
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+        $admin = requireAdmin(['coach']);
+        $input = getJsonInput();
+        $threadId = (int)($input['thread_id'] ?? 0);
+        if (!$threadId) jsonError('스레드 ID가 필요합니다');
+
+        $db = getDB();
+        verifyThreadAccessForCoach($admin['admin_id'], $threadId);
+
+        $stmt = $db->prepare('
+            INSERT INTO junior_message_reads (thread_id, reader_type, reader_id, last_read_at)
+            VALUES (?, "coach", ?, NOW())
+            ON DUPLICATE KEY UPDATE last_read_at = NOW()
+        ');
+        $stmt->execute([$threadId, $admin['admin_id']]);
+        jsonSuccess([], '읽음 처리 되었습니다');
+        break;
+
+    // 안 읽은 메시지 총 수
+    case 'msg_unread_total':
+        $admin = requireAdmin(['coach']);
+        $db = getDB();
+
+        $stmt = $db->prepare('SELECT class_id FROM junior_admin_classes WHERE admin_id = ? AND is_active = 1');
+        $stmt->execute([$admin['admin_id']]);
+        $myClassIds = array_column($stmt->fetchAll(), 'class_id');
+        if (empty($myClassIds)) jsonSuccess(['unread_messages' => 0]);
+
+        $placeholders = implode(',', array_fill(0, count($myClassIds), '?'));
+        $stmt = $db->prepare("
+            SELECT COALESCE(SUM(sub.cnt), 0) as total_unread FROM (
+                SELECT (SELECT COUNT(*) FROM junior_messages m
+                        WHERE m.thread_id = t.id AND m.is_deleted = 0 AND m.sender_type = 'parent'
+                        AND m.created_at > COALESCE(
+                            (SELECT last_read_at FROM junior_message_reads
+                             WHERE thread_id = t.id AND reader_type = 'coach' AND reader_id = ?),
+                            '1970-01-01'
+                        )) as cnt
+                FROM junior_message_threads t
+                WHERE t.class_id IN ($placeholders) AND t.is_active = 1
+            ) sub
+        ");
+        $stmt->execute(array_merge([$admin['admin_id']], $myClassIds));
+        $total = (int)$stmt->fetchColumn();
+        jsonSuccess(['unread_messages' => $total]);
+        break;
+
+    // ============================================
+    // 공지사항 기능 (코치 → 학부모)
+    // ============================================
+
+    // 공지 작성
+    case 'ann_create':
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+        $admin = requireAdmin(['coach']);
+
+        $classId = (int)($_POST['class_id'] ?? 0);
+        $title = trim($_POST['title'] ?? '');
+        $body = trim($_POST['body'] ?? '');
+        $isPinned = (int)($_POST['is_pinned'] ?? 0);
+
+        if (!$classId) jsonError('반을 선택해 주세요');
+        if (!$title) jsonError('제목을 입력해 주세요');
+        if (!$body) jsonError('내용을 입력해 주세요');
+
+        $db = getDB();
+        verifyClassAccess($admin['admin_id'], $classId);
+
+        $imagePath = null;
+        if (!empty($_FILES['image']) && $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $imagePath = uploadImage($_FILES['image'], ANN_UPLOAD_DIR, (string)$classId);
+        }
+
+        $stmt = $db->prepare('
+            INSERT INTO junior_announcements (class_id, author_id, author_name, title, body, image_path, is_pinned)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([$classId, $admin['admin_id'], $admin['admin_name'], $title, $body, $imagePath, $isPinned]);
+        jsonSuccess(['id' => (int)$db->lastInsertId()], '공지가 등록되었습니다');
+        break;
+
+    // 공지 목록
+    case 'ann_list':
+        $admin = requireAdmin(['coach']);
+        $classId = (int)($_GET['class_id'] ?? 0);
+        if (!$classId) jsonError('반을 선택해 주세요');
+
+        $db = getDB();
+        verifyClassAccess($admin['admin_id'], $classId);
+
+        // 해당 반 학생 수 (읽음률 계산용)
+        $stmt = $db->prepare('
+            SELECT COUNT(DISTINCT s.phone) as parent_count
+            FROM junior_students s
+            JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_active = 1
+            WHERE cs.class_id = ? AND s.is_active = 1 AND s.phone IS NOT NULL AND s.phone != ""
+        ');
+        $stmt->execute([$classId]);
+        $parentCount = (int)$stmt->fetchColumn();
+
+        $stmt = $db->prepare('
+            SELECT a.*,
+                   (SELECT COUNT(*) FROM junior_announcement_reads ar WHERE ar.announcement_id = a.id) as read_count
+            FROM junior_announcements a
+            WHERE a.class_id = ? AND a.is_active = 1
+            ORDER BY a.is_pinned DESC, a.created_at DESC
+        ');
+        $stmt->execute([$classId]);
+        $announcements = $stmt->fetchAll();
+
+        foreach ($announcements as &$ann) {
+            $ann['parent_count'] = $parentCount;
+        }
+
+        jsonSuccess(['announcements' => $announcements, 'parent_count' => $parentCount]);
+        break;
+
+    // 공지 삭제 (soft delete)
+    case 'ann_delete':
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+        $admin = requireAdmin(['coach']);
+        $input = getJsonInput();
+        $annId = (int)($input['announcement_id'] ?? 0);
+        if (!$annId) jsonError('공지 ID가 필요합니다');
+
+        $db = getDB();
+        // 권한 확인: 본인이 작성한 공지인지
+        $stmt = $db->prepare('SELECT class_id, author_id FROM junior_announcements WHERE id = ? AND is_active = 1');
+        $stmt->execute([$annId]);
+        $ann = $stmt->fetch();
+        if (!$ann) jsonError('공지를 찾을 수 없습니다');
+        verifyClassAccess($admin['admin_id'], $ann['class_id']);
+
+        $stmt = $db->prepare('UPDATE junior_announcements SET is_active = 0 WHERE id = ?');
+        $stmt->execute([$annId]);
+        jsonSuccess([], '공지가 삭제되었습니다');
+        break;
+
+    // 메시지 이미지 서빙
+    case 'msg_image':
+        $admin = requireAdmin(['coach']);
+        $path = trim($_GET['path'] ?? '');
+        if (!$path) jsonError('경로가 필요합니다');
+        // 경로 조작 방지
+        if (str_contains($path, '..') || str_starts_with($path, '/')) jsonError('잘못된 경로', 400);
+        $fullPath = MSG_UPLOAD_DIR . '/' . $path;
+        if (!file_exists($fullPath)) jsonError('파일을 찾을 수 없습니다', 404);
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        header('Content-Type: ' . $finfo->file($fullPath));
+        header('Cache-Control: private, max-age=86400');
+        readfile($fullPath);
+        exit;
+
+    // 공지 이미지 서빙
+    case 'ann_image':
+        $admin = requireAdmin(['coach']);
+        $path = trim($_GET['path'] ?? '');
+        if (!$path) jsonError('경로가 필요합니다');
+        if (str_contains($path, '..') || str_starts_with($path, '/')) jsonError('잘못된 경로', 400);
+        $fullPath = ANN_UPLOAD_DIR . '/' . $path;
+        if (!file_exists($fullPath)) jsonError('파일을 찾을 수 없습니다', 404);
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        header('Content-Type: ' . $finfo->file($fullPath));
+        header('Cache-Control: private, max-age=86400');
+        readfile($fullPath);
+        exit;
+
+    // 공지 읽음 현황
+    case 'ann_read_status':
+        $admin = requireAdmin(['coach']);
+        $annId = (int)($_GET['announcement_id'] ?? 0);
+        if (!$annId) jsonError('공지 ID가 필요합니다');
+
+        $db = getDB();
+        $stmt = $db->prepare('SELECT class_id FROM junior_announcements WHERE id = ? AND is_active = 1');
+        $stmt->execute([$annId]);
+        $ann = $stmt->fetch();
+        if (!$ann) jsonError('공지를 찾을 수 없습니다');
+        verifyClassAccess($admin['admin_id'], $ann['class_id']);
+
+        // 읽은 학부모
+        $stmt = $db->prepare('SELECT parent_phone, read_at FROM junior_announcement_reads WHERE announcement_id = ? ORDER BY read_at DESC');
+        $stmt->execute([$annId]);
+        $readers = $stmt->fetchAll();
+
+        // 전체 학부모 (해당 반)
+        $stmt = $db->prepare('
+            SELECT DISTINCT s.phone, s.name as student_name
+            FROM junior_students s
+            JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_active = 1
+            WHERE cs.class_id = ? AND s.is_active = 1 AND s.phone IS NOT NULL AND s.phone != ""
+        ');
+        $stmt->execute([$ann['class_id']]);
+        $allParents = $stmt->fetchAll();
+
+        $readPhones = array_column($readers, 'parent_phone');
+        $unread = array_filter($allParents, fn($p) => !in_array($p['phone'], $readPhones));
+
+        jsonSuccess([
+            'read' => $readers,
+            'unread' => array_values($unread),
+            'total' => count($allParents),
+            'read_count' => count($readers),
+        ]);
+        break;
+
     default:
         jsonError('알 수 없는 요청입니다', 404);
 }
@@ -1306,4 +1679,20 @@ function verifyClassAccess(int $adminId, int $classId): void {
     $stmt = $db->prepare('SELECT 1 FROM junior_admin_classes WHERE admin_id = ? AND class_id = ? AND is_active = 1');
     $stmt->execute([$adminId, $classId]);
     if (!$stmt->fetch()) jsonError('접근 권한이 없습니다', 403);
+}
+
+/**
+ * 코치의 메시지 스레드 접근 권한 검증
+ */
+function verifyThreadAccessForCoach(int $adminId, int $threadId): array {
+    $db = getDB();
+    $stmt = $db->prepare('
+        SELECT t.* FROM junior_message_threads t
+        JOIN junior_admin_classes ac ON t.class_id = ac.class_id
+        WHERE t.id = ? AND ac.admin_id = ? AND ac.is_active = 1
+    ');
+    $stmt->execute([$threadId, $adminId]);
+    $thread = $stmt->fetch();
+    if (!$thread) jsonError('접근 권한이 없습니다', 403);
+    return $thread;
 }

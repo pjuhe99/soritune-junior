@@ -95,7 +95,7 @@ if ($isActive) {
         }
         .scan-class-item:active { transform:scale(.96); }
         .scan-class-item.qr-home { border-color:#4CAF50; background:#E8F5E9; }
-        .scan-class-item.qr-home::after { content:'본반'; display:block; font-size:9px; color:#4CAF50; font-weight:700; margin-top:-2px; }
+        .scan-class-item.qr-home::after { content:'코치님 반'; display:block; font-size:9px; color:#4CAF50; font-weight:700; margin-top:-2px; }
         .scan-class-item.selected { border-color:#FF6B1A; background:#FFF3E0; box-shadow:0 2px 8px rgba(255,107,26,.2); }
         .scan-class-logo { width:36px; height:36px; border-radius:50%; object-fit:cover; background:#f5f5f5; }
         .scan-class-logo-text { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; }
@@ -219,8 +219,7 @@ if ($isActive) {
 
             <!-- Class Selection -->
             <div class="scan-state" id="st-class">
-                <div class="scan-section-title">반을 선택하세요</div>
-                <div class="scan-section-desc">내가 속한 반을 눌러주세요</div>
+                <div class="scan-section-title">나의 반을 선택해!</div>
                 <div class="scan-class-grid" id="class-grid"></div>
             </div>
 
@@ -363,7 +362,7 @@ if ($isActive) {
                 return `
                     <div class="scan-class-item ${isQRClass ? 'qr-home' : ''}" data-class-id="${c.id}" data-class-name="${c.display_name}">
                         ${c.logo_image
-                            ? `<img class="scan-class-logo" src="/images/class/${c.logo_image}" alt="${c.display_name}" loading="lazy">`
+                            ? `<img class="scan-class-logo" src="/images/${c.logo_image}" alt="${c.display_name}" loading="lazy">`
                             : `<div class="scan-class-logo-text" style="background:${c.color || '#FF7E17'};">${c.display_name.charAt(0)}</div>`
                         }
                         <div class="scan-class-name">${c.display_name}</div>

@@ -122,6 +122,7 @@
                 <button class="tab-btn" data-tab="admins">관리자 <span class="tab-badge" id="badge-admins">-</span></button>
                 <button class="tab-btn" data-tab="classes">반 관리 <span class="tab-badge" id="badge-classes">-</span></button>
                 <button class="tab-btn" data-tab="assignments">과제 현황</button>
+                <button class="tab-btn" data-tab="messages">대화 현황</button>
                 <button class="tab-btn" data-tab="settings">설정</button>
                 <button class="tab-btn" data-tab="audit">감사 로그</button>
             </div>
@@ -231,6 +232,10 @@
                 <div id="assign-content"></div>
             </div>
 
+            <div class="tab-content" id="tab-messages">
+                <div id="messages-content"></div>
+            </div>
+
             <div class="tab-content" id="tab-settings">
                 <div id="settings-content"></div>
             </div>
@@ -318,6 +323,7 @@
                 else if (tab === 'admins') loadAdmins();
                 else if (tab === 'classes') loadClasses();
                 else if (tab === 'assignments') loadAssignments();
+                else if (tab === 'messages') loadMessages();
                 else if (tab === 'settings') loadSettings();
                 else if (tab === 'audit') loadAudit();
             });
@@ -405,7 +411,7 @@
 
             // 초기 데이터 로드 (URL hash에서 탭 + 파라미터 복원)
             const { tab: hashTab, params: hashParams } = parseHash();
-            const validTabs = ['dashboard', 'students', 'admins', 'classes', 'assignments', 'settings', 'audit'];
+            const validTabs = ['dashboard', 'students', 'admins', 'classes', 'assignments', 'messages', 'settings', 'audit'];
             if (hashTab === 'assignments' && hashParams) {
                 // 과제 현황 상태 복원 준비
                 assignStateFromHash = {
@@ -1549,6 +1555,134 @@
                     loadClasses();
                 }
             };
+        }
+
+        // ============================================
+        // 대화 현황
+        // ============================================
+        async function loadMessages() {
+            const container = document.getElementById('messages-content');
+            container.innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="display:inline-block;"></div></div>';
+
+            const result = await App.get('/api/system.php?action=dashboard_messages');
+            if (!result.success) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#F44336;">데이터를 불러올 수 없습니다</div>';
+                return;
+            }
+
+            const { coaches, unanswered, summary } = result;
+            const deadlineStr = summary.deadline ? summary.deadline.slice(0, 16).replace('T', ' ') : '';
+
+            // KPI 카드
+            const kpiHtml = `
+                <div class="dash-kpi" style="grid-template-columns:repeat(3,1fr); margin-bottom:20px;">
+                    <div class="kpi-card">
+                        <div class="kpi-value" style="color:#1565C0;">${summary.total_threads}</div>
+                        <div class="kpi-label">총 대화</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value" style="color:#6A1B9A;">${summary.total_messages}</div>
+                        <div class="kpi-label">총 메시지</div>
+                    </div>
+                    <div class="kpi-card" style="background:${summary.total_unanswered > 0 ? 'linear-gradient(135deg,#FFEBEE,#FFCDD2)' : 'linear-gradient(135deg,#E8F5E9,#C8E6C9)'};">
+                        <div class="kpi-value" style="color:${summary.total_unanswered > 0 ? '#F44336' : '#4CAF50'};">${summary.total_unanswered}</div>
+                        <div class="kpi-label">미답변</div>
+                    </div>
+                </div>
+            `;
+
+            // 코치별 통계 테이블
+            const coachTableHtml = `
+                <div style="margin-bottom:24px;">
+                    <div style="font-size:16px; font-weight:700; margin-bottom:12px;">코치별 대화 현황</div>
+                    <div style="overflow-x:auto;">
+                        <table class="dash-table" style="width:100%; border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left; padding:10px 8px; border-bottom:2px solid #E0E0E0; font-size:13px;">코치</th>
+                                    <th style="text-align:left; padding:10px 8px; border-bottom:2px solid #E0E0E0; font-size:13px;">담당 반</th>
+                                    <th style="text-align:center; padding:10px 8px; border-bottom:2px solid #E0E0E0; font-size:13px;">대화 수</th>
+                                    <th style="text-align:center; padding:10px 8px; border-bottom:2px solid #E0E0E0; font-size:13px;">부모 수</th>
+                                    <th style="text-align:center; padding:10px 8px; border-bottom:2px solid #E0E0E0; font-size:13px;">보낸 메시지</th>
+                                    <th style="text-align:center; padding:10px 8px; border-bottom:2px solid #E0E0E0; font-size:13px;">미답변</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${coaches.map(c => `
+                                    <tr>
+                                        <td style="padding:10px 8px; border-bottom:1px solid #F0F0F0; font-weight:600;">${esc(c.coach_name)}</td>
+                                        <td style="padding:10px 8px; border-bottom:1px solid #F0F0F0; font-size:12px; color:#757575;">${esc(c.class_names || '-')}</td>
+                                        <td style="padding:10px 8px; border-bottom:1px solid #F0F0F0; text-align:center;">${c.thread_count}</td>
+                                        <td style="padding:10px 8px; border-bottom:1px solid #F0F0F0; text-align:center;">${c.parent_count}</td>
+                                        <td style="padding:10px 8px; border-bottom:1px solid #F0F0F0; text-align:center;">${c.coach_messages}</td>
+                                        <td style="padding:10px 8px; border-bottom:1px solid #F0F0F0; text-align:center; font-weight:700; color:${c.unanswered_count > 0 ? '#F44336' : '#4CAF50'};">${c.unanswered_count}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            // 미답변 상세 목록
+            let unansweredHtml = '';
+            if (unanswered.length > 0) {
+                unansweredHtml = `
+                    <div>
+                        <div style="font-size:16px; font-weight:700; margin-bottom:4px; color:#F44336;">미답변 목록</div>
+                        <div style="font-size:12px; color:#BDBDBD; margin-bottom:12px;">주말 제외 24시간 이상 답변 없는 대화 (기준: ${deadlineStr})</div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${unanswered.map(u => {
+                                const elapsed = timeSince(u.last_parent_msg_at);
+                                const preview = (u.last_parent_msg || '').substring(0, 40) + ((u.last_parent_msg || '').length > 40 ? '...' : '');
+                                return `
+                                    <div class="card" style="padding:12px; border-left:3px solid #F44336;">
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <div style="flex:1; min-width:0;">
+                                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                                    <span style="font-weight:700; font-size:14px;">${esc(u.student_name)}</span>
+                                                    <span style="font-size:11px; color:#999;">${esc(u.class_name)}</span>
+                                                    <span style="font-size:11px; color:#999;">/ ${esc(u.coach_name)} 코치</span>
+                                                </div>
+                                                <div style="font-size:12px; color:#757575; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(preview)}</div>
+                                            </div>
+                                            <div style="text-align:right; flex-shrink:0;">
+                                                <div style="font-size:11px; color:#F44336; font-weight:600;">${elapsed}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                unansweredHtml = `
+                    <div style="text-align:center; padding:24px; background:#E8F5E9; border-radius:12px; color:#2E7D32; font-size:14px;">
+                        미답변 대화가 없습니다
+                    </div>
+                `;
+            }
+
+            container.innerHTML = kpiHtml + coachTableHtml + unansweredHtml;
+        }
+
+        function esc(str) {
+            if (!str) return '';
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function timeSince(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr.replace(' ', 'T'));
+            const now = new Date();
+            const diffMs = now - d;
+            const diffMin = Math.floor(diffMs / 60000);
+            if (diffMin < 60) return diffMin + '분 전';
+            const diffHr = Math.floor(diffMin / 60);
+            if (diffHr < 24) return diffHr + '시간 전';
+            const diffDay = Math.floor(diffHr / 24);
+            return diffDay + '일 전';
         }
 
         // ============================================
