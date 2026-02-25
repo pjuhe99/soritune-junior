@@ -383,24 +383,13 @@ switch ($action) {
         $stmt->execute([$classId]);
         $students = $stmt->fetchAll();
 
-        // 해당 날짜 체크리스트
-        if ($admin['admin_role'] === 'admin_teacher') {
-            // 관리쌤: 반의 모든 체크리스트 (코치 무관)
-            $stmt = $db->prepare('
-                SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
-                FROM junior_daily_checklist
-                WHERE class_id = ? AND check_date = ?
-            ');
-            $stmt->execute([$classId, $date]);
-        } else {
-            // 코치: 본인이 작성한 것만
-            $stmt = $db->prepare('
-                SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
-                FROM junior_daily_checklist
-                WHERE class_id = ? AND check_date = ? AND coach_id = ?
-            ');
-            $stmt->execute([$classId, $date, $admin['admin_id']]);
-        }
+        // 해당 날짜 체크리스트 (unique key가 student+class+date이므로 coach 무관하게 조회)
+        $stmt = $db->prepare('
+            SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
+            FROM junior_daily_checklist
+            WHERE class_id = ? AND check_date = ?
+        ');
+        $stmt->execute([$classId, $date]);
         $checks = [];
         while ($row = $stmt->fetch()) {
             $checks[$row['student_id']] = $row;
@@ -439,22 +428,13 @@ switch ($action) {
 
         $db = getDB();
 
-        // 기존 체크리스트 조회 (비교용 — 사전검증에서도 사용)
-        if ($admin['admin_role'] === 'admin_teacher') {
-            $stmt = $db->prepare('
-                SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
-                FROM junior_daily_checklist
-                WHERE class_id = ? AND check_date = ?
-            ');
-            $stmt->execute([$classId, $date]);
-        } else {
-            $stmt = $db->prepare('
-                SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
-                FROM junior_daily_checklist
-                WHERE class_id = ? AND check_date = ? AND coach_id = ?
-            ');
-            $stmt->execute([$classId, $date, $admin['admin_id']]);
-        }
+        // 기존 체크리스트 조회 (비교용 — unique key가 student+class+date이므로 coach 무관)
+        $stmt = $db->prepare('
+            SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
+            FROM junior_daily_checklist
+            WHERE class_id = ? AND check_date = ?
+        ');
+        $stmt->execute([$classId, $date]);
         $existing = [];
         while ($row = $stmt->fetch()) {
             $existing[$row['student_id']] = $row;
