@@ -123,6 +123,7 @@
                 <button class="tab-btn" data-tab="classes">반 관리 <span class="tab-badge" id="badge-classes">-</span></button>
                 <button class="tab-btn" data-tab="assignments">과제 현황</button>
                 <button class="tab-btn" data-tab="messages">대화 현황</button>
+                <button class="tab-btn" data-tab="cards">카드 관리</button>
                 <button class="tab-btn" data-tab="settings">설정</button>
                 <button class="tab-btn" data-tab="audit">감사 로그</button>
             </div>
@@ -240,6 +241,19 @@
                 <div id="messages-content"></div>
             </div>
 
+            <div class="tab-content" id="tab-cards">
+                <div class="toolbar">
+                    <div class="toolbar-count" id="card-count">
+                        총 <span class="count-num">-</span>개 카드
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="btn-add-card" style="background:#37474F;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px; margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        카드 추가
+                    </button>
+                </div>
+                <div id="card-list-content"></div>
+            </div>
+
             <div class="tab-content" id="tab-settings">
                 <div id="settings-content"></div>
             </div>
@@ -329,6 +343,7 @@
                 else if (tab === 'classes') loadClasses();
                 else if (tab === 'assignments') loadAssignments();
                 else if (tab === 'messages') loadMessages();
+                else if (tab === 'cards') loadCards();
                 else if (tab === 'settings') loadSettings();
                 else if (tab === 'audit') loadAudit();
             });
@@ -1787,6 +1802,225 @@
             if (diffHr < 24) return diffHr + '시간 전';
             const diffDay = Math.floor(diffHr / 24);
             return diffDay + '일 전';
+        }
+
+        // ============================================
+        // 카드 관리
+        // ============================================
+        async function loadCards() {
+            const result = await App.get('/api/system.php?action=reward_types');
+            if (!result.success) return;
+
+            const cards = result.cards || [];
+            document.querySelector('#card-count .count-num').textContent = cards.length;
+
+            document.getElementById('btn-add-card').onclick = () => showCardForm();
+
+            if (!cards.length) {
+                document.getElementById('card-list-content').innerHTML = '<div style="text-align:center;color:#999;padding:40px;">등록된 카드가 없습니다</div>';
+                return;
+            }
+
+            document.getElementById('card-list-content').innerHTML = `
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; margin-top:8px;">
+                    ${cards.map(c => `
+                        <div class="card-item" style="background:#fff; border-radius:14px; padding:16px; border:1.5px solid #E0E0E0; position:relative;">
+                            <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+                                <div style="width:56px; height:56px; border-radius:12px; background:${c.color}15; border:1.5px solid ${c.color}40; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+                                    ${c.image_file
+                                        ? `<img src="/images/cards/${c.image_file}?t=${Date.now()}" style="width:100%; height:100%; object-fit:contain;" onerror="this.parentElement.innerHTML='<span style=font-size:24px>🃏</span>'">`
+                                        : '<span style="font-size:24px;">🃏</span>'}
+                                </div>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-weight:700; font-size:16px; color:${c.color};">${c.name_ko}</div>
+                                    <div style="font-size:12px; color:#999;">${c.name_en} · <code style="background:#F5F5F5; padding:1px 5px; border-radius:3px; font-size:11px;">${c.code}</code></div>
+                                </div>
+                                <span style="position:absolute; top:12px; right:12px; font-size:11px; padding:2px 8px; border-radius:10px; background:${c.is_active ? '#E8F5E9' : '#FFEBEE'}; color:${c.is_active ? '#2E7D32' : '#C62828'};">${c.is_active ? '활성' : '비활성'}</span>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:12px; color:#666; margin-bottom:12px;">
+                                <div style="background:#F5F5F5; padding:6px 8px; border-radius:8px; text-align:center;">
+                                    <div style="color:#999; font-size:10px;">코인</div>
+                                    <div style="font-weight:700; color:#F5A623;">${c.coin_value}</div>
+                                </div>
+                                <div style="background:#F5F5F5; padding:6px 8px; border-radius:8px; text-align:center;">
+                                    <div style="color:#999; font-size:10px;">주간한도</div>
+                                    <div style="font-weight:700;">${c.weekly_limit !== null ? c.weekly_limit + '장' : '무제한'}</div>
+                                </div>
+                                <div style="background:#F5F5F5; padding:6px 8px; border-radius:8px; text-align:center;">
+                                    <div style="color:#999; font-size:10px;">정렬</div>
+                                    <div style="font-weight:700;">${c.sort_order}</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <button class="btn btn-sm btn-secondary" style="flex:1;" onclick="editCard(${c.id})">수정</button>
+                                <button class="btn btn-sm" style="flex:1; background:#FFEBEE; color:#C62828; border:1px solid #EF9A9A;" onclick="deleteCard(${c.id}, '${c.name_ko}')">삭제</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function showCardForm(card = null) {
+            const isEdit = !!card;
+            const title = isEdit ? '카드 수정' : '카드 추가';
+
+            const content = `
+                <div style="max-height:70vh; overflow-y:auto; padding:2px;">
+                    <div class="form-group">
+                        <label class="form-label">코드 (영문, 소문자)</label>
+                        <input type="text" id="card-code" class="form-input" placeholder="예: steady" value="${card?.code || ''}" ${isEdit ? 'readonly style="background:#F5F5F5;"' : ''}>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">한글 이름</label>
+                        <input type="text" id="card-name-ko" class="form-input" placeholder="예: 꾸준왕" value="${card?.name_ko || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">영문 이름</label>
+                        <input type="text" id="card-name-en" class="form-input" placeholder="예: Steady King" value="${card?.name_en || ''}">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group">
+                            <label class="form-label">코인 값</label>
+                            <input type="number" id="card-coin" class="form-input" min="0" value="${card?.coin_value ?? 1}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">색상</label>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <input type="color" id="card-color" value="${card?.color || '#4CAF50'}" style="width:40px; height:36px; border:none; border-radius:8px; cursor:pointer;">
+                                <input type="text" id="card-color-text" class="form-input" value="${card?.color || '#4CAF50'}" style="flex:1; font-family:monospace;">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group">
+                            <label class="form-label">주간 한도 (빈값=무제한)</label>
+                            <input type="number" id="card-weekly-limit" class="form-input" min="0" placeholder="무제한" value="${card?.weekly_limit ?? ''}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">정렬 순서</label>
+                            <input type="number" id="card-sort" class="form-input" min="0" value="${card?.sort_order ?? 0}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">활성 상태</label>
+                        <select id="card-active" class="form-input">
+                            <option value="1" ${card?.is_active !== 0 ? 'selected' : ''}>활성</option>
+                            <option value="0" ${card?.is_active === 0 ? 'selected' : ''}>비활성</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">카드 이미지</label>
+                        <div style="display:flex; gap:12px; align-items:center;">
+                            <div id="card-img-preview" style="width:64px; height:64px; border-radius:10px; border:1.5px dashed #ccc; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#F9F9F9; flex-shrink:0;">
+                                ${card?.image_file ? `<img src="/images/cards/${card.image_file}?t=${Date.now()}" style="width:100%; height:100%; object-fit:contain;">` : '<span style="color:#ccc; font-size:11px;">없음</span>'}
+                            </div>
+                            <div style="flex:1;">
+                                <label style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#37474F; color:#fff; border-radius:10px; cursor:pointer; font-size:13px; font-weight:600; font-family:inherit;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    이미지 선택
+                                    <input type="file" id="card-image-file" accept="image/png,image/jpeg,image/webp" style="display:none;">
+                                </label>
+                                <div style="font-size:11px; color:#BDBDBD; margin-top:4px;">PNG, JPG, WebP / 최대 2MB</div>
+                                ${card?.image_file ? `<div style="font-size:11px; color:#999; margin-top:2px;">현재: ${card.image_file}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-block" id="btn-save-card" style="background:#37474F; color:#fff; margin-top:12px;">
+                        ${isEdit ? '수정 저장' : '카드 추가'}
+                    </button>
+                </div>
+            `;
+
+            const modal = App.openModal(title, content);
+
+            // 색상 동기화
+            const colorPicker = modal.querySelector('#card-color');
+            const colorText = modal.querySelector('#card-color-text');
+            colorPicker.addEventListener('input', () => { colorText.value = colorPicker.value; });
+            colorText.addEventListener('input', () => {
+                if (/^#[0-9A-Fa-f]{6}$/.test(colorText.value)) colorPicker.value = colorText.value;
+            });
+
+            // 이미지 미리보기
+            modal.querySelector('#card-image-file').addEventListener('change', function() {
+                if (this.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        modal.querySelector('#card-img-preview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:contain;">`;
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+
+            modal.querySelector('#btn-save-card').onclick = async () => {
+                const code = modal.querySelector('#card-code').value.trim();
+                const nameKo = modal.querySelector('#card-name-ko').value.trim();
+                const nameEn = modal.querySelector('#card-name-en').value.trim();
+                const coinValue = modal.querySelector('#card-coin').value;
+                const color = modal.querySelector('#card-color-text').value.trim();
+                const weeklyLimit = modal.querySelector('#card-weekly-limit').value;
+                const sortOrder = modal.querySelector('#card-sort').value;
+                const isActive = modal.querySelector('#card-active').value;
+                const imageFile = modal.querySelector('#card-image-file').files[0];
+
+                if (!code || !nameKo || !nameEn) {
+                    Toast.error('코드, 한글 이름, 영문 이름은 필수입니다');
+                    return;
+                }
+                if (!/^[a-z][a-z0-9_]*$/.test(code)) {
+                    Toast.error('코드는 영문 소문자, 숫자, 밑줄만 허용됩니다');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('code', code);
+                formData.append('name_ko', nameKo);
+                formData.append('name_en', nameEn);
+                formData.append('coin_value', coinValue || '1');
+                formData.append('color', color);
+                formData.append('weekly_limit', weeklyLimit);
+                formData.append('sort_order', sortOrder || '0');
+                formData.append('is_active', isActive);
+                if (imageFile) formData.append('card_image', imageFile);
+                if (isEdit) formData.append('id', card.id);
+
+                try {
+                    const resp = await fetch(`/api/system.php?action=${isEdit ? 'update_reward_type' : 'create_reward_type'}`, {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'same-origin',
+                    });
+                    const result = await resp.json();
+                    if (result.success) {
+                        Toast.success(result.message || (isEdit ? '수정 완료' : '추가 완료'));
+                        App.closeModal(modal);
+                        loadCards();
+                    } else {
+                        Toast.error(result.error || '저장 실패');
+                    }
+                } catch (e) {
+                    Toast.error('저장 중 오류가 발생했습니다');
+                }
+            };
+        }
+
+        async function editCard(id) {
+            const result = await App.get(`/api/system.php?action=reward_type_detail&id=${id}`);
+            if (!result.success) { Toast.error('카드 정보를 불러올 수 없습니다'); return; }
+            showCardForm(result.card);
+        }
+
+        async function deleteCard(id, name) {
+            if (!confirm(`"${name}" 카드를 정말 삭제하시겠습니까?\n\n이미 학생에게 지급된 기록이 있으면 삭제되지 않습니다.`)) return;
+
+            const result = await App.post('/api/system.php?action=delete_reward_type', { id });
+            if (result.success) {
+                Toast.success(result.message || '삭제 완료');
+                loadCards();
+            } else {
+                Toast.error(result.error || '삭제 실패');
+            }
         }
 
         // ============================================

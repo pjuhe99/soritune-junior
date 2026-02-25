@@ -59,9 +59,10 @@ switch ($action) {
             break;
         }
 
-        // 대리출석 방지: 같은 fingerprint + 같은 IP로 다른 학생이 이미 출석했는지 확인
+        // 대리출석 감지: 같은 fingerprint + 같은 IP로 다른 학생이 이미 출석했는지 확인
         // (같은 기종이라도 IP가 다르면 다른 장소/기기로 판단하여 허용)
         $clientIP = getClientIP();
+        $proxyWarning = null;
         if ($fingerprint) {
             $stmt = $db->prepare('
                 SELECT qa.student_id, s.name as attended_name, s.phone_last4 as attended_phone_last4
@@ -86,10 +87,10 @@ switch ($action) {
                     && $attemptStudent['surname'] === $existingSurname;
 
                 if (!$isSibling) {
-                    // 차단 로그 기록
+                    // 대리출석 의심 로그 기록 (코치가 확인 가능)
                     $stmt = $db->prepare('
                         INSERT INTO junior_qr_log (qr_session_id, event_type, student_id, detail, ip_address)
-                        VALUES (?, "blocked_proxy", ?, ?, ?)
+                        VALUES (?, "warn_proxy", ?, ?, ?)
                     ');
                     $stmt->execute([
                         $qrSession['id'], $studentId,
@@ -102,11 +103,8 @@ switch ($action) {
                         $clientIP
                     ]);
 
-                    jsonError(
-                        '이 기기에서 이미 다른 친구가 출석했어요! 직접 본인 핸드폰으로 출석하거나, 코치 선생님께 말해주세요',
-                        403,
-                        ['code' => 'proxy_blocked']
-                    );
+                    // 출석은 허용하되 경고 메시지 전달
+                    $proxyWarning = '⚠️ 다른 친구 핸드폰으로 출석한 것 같아! 다음부터는 꼭 본인 핸드폰으로 출석해줘. 코치 선생님도 확인할 수 있어!';
                 }
             }
         }
@@ -121,9 +119,9 @@ switch ($action) {
         $classInfo = $stmt->fetch();
         $isHomeClass = $classInfo ? (int)$classInfo['is_primary'] : 0;
 
-        // 출석 기록
+        // 출석 기록 (UNIQUE 인덱스로 동시 요청 시 중복 방지)
         $stmt = $db->prepare('
-            INSERT INTO junior_qr_attendance
+            INSERT IGNORE INTO junior_qr_attendance
             (qr_session_id, student_id, class_id, is_home_class, status, approved_at, fingerprint, ip_address)
             VALUES (?, ?, ?, ?, "approved", NOW(), ?, ?)
         ');
@@ -131,6 +129,12 @@ switch ($action) {
             $qrSession['id'], $studentId, $qrSession['class_id'],
             $isHomeClass, $fingerprint, $clientIP
         ]);
+
+        // INSERT IGNORE로 0행이면 동시 요청에 의한 중복 → 이미 출석 처리
+        if ($stmt->rowCount() === 0) {
+            jsonSuccess(['already' => true, 'student_name' => $studentName], '이미 출석했어!');
+            break;
+        }
 
         // QR 로그
         $stmt = $db->prepare('
@@ -211,9 +215,18 @@ switch ($action) {
         if ($cardWarning) {
             $responseData['card_warning'] = $cardWarning;
         }
-        jsonSuccess($responseData, $cardWarning
-            ? '출석 완료! 열정왕 카드는 이번 주 다 받았어.'
-            : '출석 완료!');
+        if ($proxyWarning) {
+            $responseData['proxy_warning'] = $proxyWarning;
+        }
+
+        // 메시지 우선순위: 대리출석 경고 > 카드 경고 > 기본
+        $message = '출석 완료!';
+        if ($proxyWarning) {
+            $message = $proxyWarning;
+        } elseif ($cardWarning) {
+            $message = '출석 완료! 열정왕 카드는 이번 주 다 받았어.';
+        }
+        jsonSuccess($responseData, $message);
         break;
 
     // 세션별 출석자 목록 (코치용)

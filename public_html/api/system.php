@@ -7,6 +7,43 @@ require_once __DIR__ . '/../auth.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+/**
+ * 카드 이미지 업로드 처리
+ */
+function uploadCardImage(array $file, string $code): string {
+    $maxSize = 2 * 1024 * 1024; // 2MB
+    if ($file['size'] > $maxSize) jsonError('이미지는 2MB 이하만 가능합니다');
+
+    $allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    if (!in_array($mimeType, $allowed)) jsonError('PNG, JPG, WebP 이미지만 허용됩니다');
+
+    $ext = match($mimeType) {
+        'image/png'  => 'png',
+        'image/jpeg' => 'jpg',
+        'image/webp' => 'webp',
+        default      => 'png',
+    };
+
+    $uploadDir = dirname(__DIR__) . '/images/cards/';
+    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+    $filename = $code . '.' . $ext;
+
+    // 같은 코드의 기존 이미지 삭제
+    foreach (glob($uploadDir . $code . '.*') as $old) {
+        @unlink($old);
+    }
+
+    if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
+        jsonError('이미지 업로드에 실패했습니다');
+    }
+
+    return $filename;
+}
+
 $action = getAction();
 $method = getMethod();
 
@@ -1785,6 +1822,150 @@ switch ($action) {
                 'deadline' => $deadlineStr,
             ],
         ]);
+        break;
+
+    // ============================================
+    // 카드(보상 타입) 관리
+    // ============================================
+    case 'reward_types':
+        requireSystem();
+        $db = getDB();
+        $stmt = $db->query('SELECT * FROM junior_reward_types ORDER BY sort_order, id');
+        jsonSuccess(['cards' => $stmt->fetchAll()]);
+        break;
+
+    case 'reward_type_detail':
+        requireSystem();
+        $id = (int)($_GET['id'] ?? 0);
+        if (!$id) jsonError('카드 ID가 필요합니다');
+        $db = getDB();
+        $stmt = $db->prepare('SELECT * FROM junior_reward_types WHERE id = ?');
+        $stmt->execute([$id]);
+        $card = $stmt->fetch();
+        if (!$card) jsonError('카드를 찾을 수 없습니다');
+        jsonSuccess(['card' => $card]);
+        break;
+
+    case 'create_reward_type':
+        $admin = requireSystem();
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+
+        $code = trim($_POST['code'] ?? '');
+        $nameKo = trim($_POST['name_ko'] ?? '');
+        $nameEn = trim($_POST['name_en'] ?? '');
+        $coinValue = max(0, (int)($_POST['coin_value'] ?? 1));
+        $color = trim($_POST['color'] ?? '#4CAF50');
+        $weeklyLimit = ($_POST['weekly_limit'] ?? '') === '' ? null : max(0, (int)$_POST['weekly_limit']);
+        $sortOrder = max(0, (int)($_POST['sort_order'] ?? 0));
+        $isActive = (int)($_POST['is_active'] ?? 1);
+
+        if (!$code || !$nameKo || !$nameEn) jsonError('코드, 한글 이름, 영문 이름은 필수입니다');
+        if (!preg_match('/^[a-z][a-z0-9_]*$/', $code)) jsonError('코드는 영문 소문자로 시작하고, 소문자/숫자/밑줄만 허용됩니다');
+
+        $db = getDB();
+
+        // 코드 중복 확인
+        $stmt = $db->prepare('SELECT id FROM junior_reward_types WHERE code = ?');
+        $stmt->execute([$code]);
+        if ($stmt->fetch()) jsonError("이미 존재하는 코드입니다: {$code}");
+
+        // 이미지 업로드 처리
+        $imageFile = null;
+        if (!empty($_FILES['card_image']) && $_FILES['card_image']['error'] === UPLOAD_ERR_OK) {
+            $imageFile = uploadCardImage($_FILES['card_image'], $code);
+        }
+
+        $stmt = $db->prepare('
+            INSERT INTO junior_reward_types (code, name_ko, name_en, coin_value, color, image_file, sort_order, is_active, weekly_limit)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([$code, $nameKo, $nameEn, $coinValue, $color, $imageFile, $sortOrder, $isActive, $weeklyLimit]);
+
+        auditLog('junior_reward_types', (int)$db->lastInsertId(), 'create', null, null, $nameKo, '카드 추가', $admin['system_id'], 'system', $admin['system_name']);
+        jsonSuccess([], "'{$nameKo}' 카드가 추가되었습니다");
+        break;
+
+    case 'update_reward_type':
+        $admin = requireSystem();
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+
+        $id = (int)($_POST['id'] ?? 0);
+        if (!$id) jsonError('카드 ID가 필요합니다');
+
+        $db = getDB();
+        $stmt = $db->prepare('SELECT * FROM junior_reward_types WHERE id = ?');
+        $stmt->execute([$id]);
+        $existing = $stmt->fetch();
+        if (!$existing) jsonError('카드를 찾을 수 없습니다');
+
+        $nameKo = trim($_POST['name_ko'] ?? '');
+        $nameEn = trim($_POST['name_en'] ?? '');
+        $coinValue = max(0, (int)($_POST['coin_value'] ?? 1));
+        $color = trim($_POST['color'] ?? '#4CAF50');
+        $weeklyLimit = ($_POST['weekly_limit'] ?? '') === '' ? null : max(0, (int)$_POST['weekly_limit']);
+        $sortOrder = max(0, (int)($_POST['sort_order'] ?? 0));
+        $isActive = (int)($_POST['is_active'] ?? 1);
+
+        if (!$nameKo || !$nameEn) jsonError('한글 이름, 영문 이름은 필수입니다');
+
+        // 이미지 업로드 처리
+        $imageFile = $existing['image_file'];
+        if (!empty($_FILES['card_image']) && $_FILES['card_image']['error'] === UPLOAD_ERR_OK) {
+            $imageFile = uploadCardImage($_FILES['card_image'], $existing['code']);
+        }
+
+        $stmt = $db->prepare('
+            UPDATE junior_reward_types
+            SET name_ko = ?, name_en = ?, coin_value = ?, color = ?, image_file = ?, sort_order = ?, is_active = ?, weekly_limit = ?
+            WHERE id = ?
+        ');
+        $stmt->execute([$nameKo, $nameEn, $coinValue, $color, $imageFile, $sortOrder, $isActive, $weeklyLimit, $id]);
+
+        auditLog('junior_reward_types', $id, 'update', null, $existing['name_ko'], $nameKo, '카드 수정', $admin['system_id'], 'system', $admin['system_name']);
+        jsonSuccess([], "'{$nameKo}' 카드가 수정되었습니다");
+        break;
+
+    case 'delete_reward_type':
+        $admin = requireSystem();
+        if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
+
+        $input = getJsonInput();
+        $id = (int)($input['id'] ?? 0);
+        if (!$id) jsonError('카드 ID가 필요합니다');
+
+        $db = getDB();
+
+        // 기존 카드 조회
+        $stmt = $db->prepare('SELECT * FROM junior_reward_types WHERE id = ?');
+        $stmt->execute([$id]);
+        $card = $stmt->fetch();
+        if (!$card) jsonError('카드를 찾을 수 없습니다');
+
+        // 이미 지급된 기록이 있는지 확인
+        $stmt = $db->prepare('SELECT COUNT(*) FROM junior_student_rewards WHERE reward_type_id = ? AND quantity > 0');
+        $stmt->execute([$id]);
+        if ((int)$stmt->fetchColumn() > 0) {
+            jsonError('이미 학생에게 지급된 카드입니다. 비활성 처리를 권장합니다.');
+        }
+
+        // 로그 기록이 있는지 확인
+        $stmt = $db->prepare('SELECT COUNT(*) FROM junior_reward_log WHERE reward_type_id = ?');
+        $stmt->execute([$id]);
+        if ((int)$stmt->fetchColumn() > 0) {
+            jsonError('이 카드의 지급/차감 기록이 존재합니다. 비활성 처리를 권장합니다.');
+        }
+
+        // 이미지 파일 삭제
+        if ($card['image_file']) {
+            $imgPath = dirname(__DIR__) . '/images/cards/' . $card['image_file'];
+            if (file_exists($imgPath)) @unlink($imgPath);
+        }
+
+        $stmt = $db->prepare('DELETE FROM junior_reward_types WHERE id = ?');
+        $stmt->execute([$id]);
+
+        auditLog('junior_reward_types', $id, 'delete', null, $card['name_ko'], null, '카드 삭제', $admin['system_id'], 'system', $admin['system_name']);
+        jsonSuccess([], "'{$card['name_ko']}' 카드가 삭제되었습니다");
         break;
 
     default:
