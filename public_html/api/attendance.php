@@ -59,16 +59,18 @@ switch ($action) {
             break;
         }
 
-        // 대리출석 방지: 같은 fingerprint로 다른 학생이 이미 출석했는지 확인
+        // 대리출석 방지: 같은 fingerprint + 같은 IP로 다른 학생이 이미 출석했는지 확인
+        // (같은 기종이라도 IP가 다르면 다른 장소/기기로 판단하여 허용)
+        $clientIP = getClientIP();
         if ($fingerprint) {
             $stmt = $db->prepare('
                 SELECT qa.student_id, s.name as attended_name, s.phone_last4 as attended_phone_last4
                 FROM junior_qr_attendance qa
                 JOIN junior_students s ON qa.student_id = s.id
-                WHERE qa.qr_session_id = ? AND qa.fingerprint = ? AND qa.student_id != ? AND qa.status != "removed"
+                WHERE qa.qr_session_id = ? AND qa.fingerprint = ? AND qa.ip_address = ? AND qa.student_id != ? AND qa.status != "removed"
                 LIMIT 1
             ');
-            $stmt->execute([$qrSession['id'], $fingerprint, $studentId]);
+            $stmt->execute([$qrSession['id'], $fingerprint, $clientIP, $studentId]);
             $existingAttendance = $stmt->fetch();
 
             if ($existingAttendance) {
@@ -97,7 +99,7 @@ switch ($action) {
                             'existing_student_name' => $existingAttendance['attended_name'],
                             'fingerprint' => $fingerprint
                         ], JSON_UNESCAPED_UNICODE),
-                        getClientIP()
+                        $clientIP
                     ]);
 
                     jsonError(
@@ -127,7 +129,7 @@ switch ($action) {
         ');
         $stmt->execute([
             $qrSession['id'], $studentId, $qrSession['class_id'],
-            $isHomeClass, $fingerprint, getClientIP()
+            $isHomeClass, $fingerprint, $clientIP
         ]);
 
         // QR 로그
