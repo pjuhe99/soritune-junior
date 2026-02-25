@@ -146,7 +146,11 @@ switch ($action) {
         $stmt = $db->prepare('
             SELECT c.id, c.display_name,
                    COUNT(DISTINCT cs.student_id) as student_count,
-                   COALESCE(SUM(sr.quantity * rt.coin_value), 0) + COALESCE(SUM(DISTINCT s.coin_offset), 0) as total_coins
+                   COALESCE(SUM(sr.quantity * rt.coin_value), 0) + COALESCE(
+                       (SELECT SUM(s2.coin_offset) FROM junior_class_students cs2
+                        JOIN junior_students s2 ON cs2.student_id = s2.id AND s2.is_active = 1
+                        WHERE cs2.class_id = c.id AND cs2.is_primary = 1 AND cs2.is_active = 1), 0
+                   ) as total_coins
             FROM junior_classes c
             LEFT JOIN junior_class_students cs ON c.id = cs.class_id AND cs.is_primary = 1 AND cs.is_active = 1
             LEFT JOIN junior_students s ON cs.student_id = s.id AND s.is_active = 1
