@@ -1018,6 +1018,32 @@ switch ($action) {
             jsonError($result['message'] ?? '카드 지급 실패');
         }
 
+        // 카드 지급 성공 → 체크리스트 posture_king +1 반영
+        $today = date('Y-m-d');
+        $stmt = $db->prepare('
+            SELECT cs.class_id, ac.admin_id as coach_id
+            FROM junior_class_students cs
+            LEFT JOIN junior_admin_classes ac ON cs.class_id = ac.class_id
+            WHERE cs.student_id = ? AND cs.is_active = 1 AND cs.is_primary = 1
+            LIMIT 1
+        ');
+        $stmt->execute([$studentId]);
+        $homeClass = $stmt->fetch();
+        $checkClassId = $homeClass ? (int)$homeClass['class_id'] : 0;
+
+        $stmt = $db->prepare('SELECT id FROM junior_daily_checklist WHERE student_id = ? AND check_date = ? AND class_id = ?');
+        $stmt->execute([$studentId, $today, $checkClassId]);
+        $checklist = $stmt->fetch();
+
+        if ($checklist) {
+            $db->prepare('UPDATE junior_daily_checklist SET posture_king = posture_king + 1 WHERE id = ?')->execute([$checklist['id']]);
+        } else {
+            $db->prepare('
+                INSERT INTO junior_daily_checklist (student_id, class_id, check_date, coach_id, posture_king)
+                VALUES (?, ?, ?, ?, 1)
+            ')->execute([$studentId, $checkClassId, $today, $admin['admin_id']]);
+        }
+
         $usage = getWeeklyCardUsage($studentId, 'posture');
         jsonSuccess(['remaining' => $usage['remaining'], 'limit' => $usage['limit']], '바른자세왕 카드가 지급되었습니다');
         break;

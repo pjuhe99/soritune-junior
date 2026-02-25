@@ -152,6 +152,15 @@ switch ($action) {
         $autoZoom = getSetting('attendance_auto_zoom', true);
         $autoPassion = getSetting('attendance_auto_passion', true);
 
+        // 열정왕 카드 먼저 지급 (체크리스트 기반 한도 체크이므로 체크리스트 업데이트 전에 실행)
+        $cardWarning = null;
+        if ($autoPassion) {
+            $result = changeReward($studentId, 'passion', 1, 'qr_attendance', 'QR 출석 자동 부여', null, 'auto');
+            if (!$result['success'] && $result['error'] === 'weekly_limit_exceeded') {
+                $cardWarning = '열정왕 카드는 이번 주 다 받았어!';
+            }
+        }
+
         if ($autoZoom) {
             // 학생의 본반 + 담당 코치 조회
             $stmt = $db->prepare('
@@ -195,15 +204,6 @@ switch ($action) {
                     VALUES (?, ?, ?, ?, 1)
                 ');
                 $stmt->execute([$studentId, $checkClassId, $today, $checkCoachId]);
-            }
-        }
-
-        $cardWarning = null;
-        if ($autoPassion) {
-            // 열정왕 카드 자동 부여 (주간 한도 체크)
-            $result = changeReward($studentId, 'passion', 1, 'qr_attendance', 'QR 출석 자동 부여', null, 'auto');
-            if (!$result['success'] && $result['error'] === 'weekly_limit_exceeded') {
-                $cardWarning = '열정왕 카드는 이번 주 다 받았어!';
             }
         }
 
