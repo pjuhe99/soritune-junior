@@ -381,6 +381,14 @@
     border-radius: var(--radius-md);
     background: var(--gray-50);
 }
+.profile-reward-clickable {
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+}
+.profile-reward-clickable:hover {
+    background: var(--gray-100);
+    transform: translateY(-1px);
+}
 
 .profile-reward-count {
     font-size: var(--font-size-lg);

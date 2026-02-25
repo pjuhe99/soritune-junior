@@ -937,7 +937,7 @@ const CoachApp = (() => {
                 </div>
                 <div class="profile-rewards">
                     ${rewards.map(r => `
-                        <div class="profile-reward-item" style="border-top:3px solid ${r.color}">
+                        <div class="profile-reward-item profile-reward-clickable" style="border-top:3px solid ${r.color}" onclick="CoachApp.showCardDates(${studentId}, '${r.code}')">
                             <div class="profile-reward-count" style="color:${r.color}">${r.quantity}</div>
                             <div class="profile-reward-name">${r.name_ko}</div>
                         </div>
@@ -1006,6 +1006,56 @@ const CoachApp = (() => {
                 </div>
             ` : ''}
         `;
+    }
+
+    async function showCardDates(studentId, code) {
+        App.showLoading();
+        const result = await App.get(`/api/coach.php?action=card_detail&student_id=${studentId}&code=${code}`);
+        App.hideLoading();
+        if (!result.success) return;
+
+        // 현재 프로필의 rewards에서 카드 정보 찾기
+        const rewardItems = document.querySelectorAll('.reward-edit-row');
+        let cardName = code, cardColor = '#666';
+        rewardItems.forEach(el => {
+            if (el.dataset.code === code) {
+                cardName = el.querySelector('.reward-edit-label')?.textContent || code;
+                cardColor = el.querySelector('.reward-edit-label')?.style.color || '#666';
+            }
+        });
+        const qtyEl = document.querySelector(`.profile-reward-item[onclick*="'${code}'"] .profile-reward-count`);
+        const qty = qtyEl?.textContent || '0';
+
+        // 날짜별 그룹핑 (양수만)
+        const dateMap = {};
+        result.history.forEach(h => {
+            if (h.change_amount <= 0) return;
+            const dateStr = h.created_at.substring(0, 10);
+            dateMap[dateStr] = (dateMap[dateStr] || 0) + Number(h.change_amount);
+        });
+        const dates = Object.entries(dateMap).sort((a, b) => b[0].localeCompare(a[0]));
+
+        let html = `
+            <div style="text-align:center; margin-bottom:16px;">
+                <div style="font-size:28px; font-weight:900; color:${cardColor}">${qty}<span style="font-size:14px; font-weight:600; color:#90A4AE">장</span></div>
+            </div>
+        `;
+
+        if (dates.length === 0) {
+            html += `<div style="text-align:center; color:#BDBDBD; padding:20px 0;">기록 없음</div>`;
+        } else {
+            html += `
+                <div style="font-size:13px; font-weight:700; color:#546E7A; margin-bottom:10px;">📅 획득 날짜</div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                    ${dates.map(([date, count]) => {
+                        const suffix = count > 1 ? ` *${count}개` : '';
+                        return `<span class="date-tag">${date}${suffix}</span>`;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        App.openModal(cardName, html);
     }
 
     async function adjustReward(studentId, rewardCode, amount) {
@@ -2466,7 +2516,7 @@ const CoachApp = (() => {
     document.addEventListener('DOMContentLoaded', init);
 
     return {
-        init, changeAttendance: manualAttendance, adjustReward, selectProfileStudent, openAceFromProfile,
+        init, changeAttendance: manualAttendance, adjustReward, showCardDates, selectProfileStudent, openAceFromProfile,
         manualAttendance, givePostureCard,
         // ACE exports
         loadAcePending, openAceEval, playAceAudio, filterAce, selectAceResult,

@@ -741,6 +741,72 @@ switch ($action) {
         ]);
         break;
 
+    // 카드별 획득 날짜 조회 (체크리스트/제출 기반, student.php card_detail과 동일 로직)
+    case 'card_detail':
+        $admin = requireAdmin(['coach', 'admin_teacher']);
+        $studentId = (int)($_GET['student_id'] ?? 0);
+        $code = trim($_GET['code'] ?? '');
+        if (!$studentId || !$code) jsonError('학생 ID와 카드 코드가 필요합니다');
+
+        $db = getDB();
+        $history = [];
+        $cardToField = array_flip(CHECKLIST_CARD_MAP);
+
+        if ($code === 'steady') {
+            $stmt = $db->prepare('
+                SELECT wc.week_end AS created_at, 1 AS change_amount
+                FROM junior_weekly_calendar wc
+                JOIN junior_daily_checklist dc
+                    ON dc.student_id = ? AND dc.check_date BETWEEN wc.week_start AND wc.week_end
+                    AND dc.sound_homework = 1
+                GROUP BY wc.week_start, wc.week_end, wc.required_count
+                HAVING COUNT(*) >= wc.required_count
+                ORDER BY wc.week_end DESC
+            ');
+            $stmt->execute([$studentId]);
+            $history = $stmt->fetchAll();
+
+        } elseif ($code === 'ace') {
+            $stmt = $db->prepare('
+                SELECT DATE(submitted_at) AS created_at, 1 AS change_amount
+                FROM junior_ace_submissions
+                WHERE student_id = ? AND status IN (\'submitted\', \'evaluated\') AND submitted_at IS NOT NULL
+                UNION ALL
+                SELECT DATE(submitted_at) AS created_at, 1 AS change_amount
+                FROM junior_bravo_submissions
+                WHERE student_id = ? AND status IN (\'submitted\', \'confirmed\') AND submitted_at IS NOT NULL
+                ORDER BY created_at DESC
+            ');
+            $stmt->execute([$studentId, $studentId]);
+            $history = $stmt->fetchAll();
+
+        } elseif (isset($cardToField[$code])) {
+            $field = $cardToField[$code];
+            $stmt = $db->prepare("
+                SELECT check_date AS created_at, `$field` AS change_amount
+                FROM junior_daily_checklist
+                WHERE student_id = ? AND `$field` > 0
+                ORDER BY check_date DESC
+            ");
+            $stmt->execute([$studentId]);
+            $history = $stmt->fetchAll();
+
+        } else {
+            $stmt = $db->prepare('
+                SELECT rl.change_amount, rl.created_at
+                FROM junior_reward_log rl
+                JOIN junior_reward_types rt ON rl.reward_type_id = rt.id
+                WHERE rl.student_id = ? AND rt.code = ?
+                ORDER BY rl.created_at DESC
+                LIMIT 50
+            ');
+            $stmt->execute([$studentId, $code]);
+            $history = $stmt->fetchAll();
+        }
+
+        jsonSuccess(['history' => $history]);
+        break;
+
     // 카드 수동 수정 (감사 로그 필수)
     case 'edit_reward':
         if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);

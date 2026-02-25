@@ -1226,24 +1226,6 @@
     gap: 8px;
 }
 
-.date-tag {
-    display: inline-block;
-    padding: 6px 14px;
-    background: #F5F5F5;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #455A64;
-    border: 1.5px solid #E0E0E0;
-    transition: all 0.2s ease;
-}
-
-.date-tag:hover {
-    background: #E3F2FD;
-    border-color: #90CAF9;
-    transform: translateY(-1px);
-}
-
 .card-detail-empty {
     text-align: center;
     padding: 32px 16px;
