@@ -1220,7 +1220,7 @@ switch ($action) {
                     $isCurrent = ($today >= $w['week_start'] && $today <= $w['week_end']);
                     $entry = [
                         'label' => $s . '~' . $e, 'submitted' => $submitted, 'possible' => $possible,
-                        'rate' => $possible > 0 ? round($submitted / $possible * 100, 1) : 0,
+                        'rate' => $possible > 0 ? min(100, round($submitted / $possible * 100, 1)) : 0,
                         'required' => $req, 'isCurrent' => $isCurrent,
                     ];
                     // 진행 중인 기간: 오늘까지 기준 값도 추가
@@ -1230,7 +1230,7 @@ switch ($action) {
                         $entry['elapsed_days'] = $elapsedDays;
                         $entry['total_days'] = count($dates);
                         $entry['possible_so_far'] = $possibleSoFar;
-                        $entry['rate_so_far'] = $possibleSoFar > 0 ? round($submitted / $possibleSoFar * 100, 1) : 0;
+                        $entry['rate_so_far'] = $possibleSoFar > 0 ? min(100, round($submitted / $possibleSoFar * 100, 1)) : 0;
                     }
                     $periods[] = $entry;
                 }
@@ -1255,7 +1255,7 @@ switch ($action) {
                     $possible = $total * $totalReq;
                     $entry = [
                         'label' => (int)date('n', strtotime($mk . '-01')) . '월', 'submitted' => $submitted, 'possible' => $possible,
-                        'rate' => $possible > 0 ? round($submitted / $possible * 100, 1) : 0,
+                        'rate' => $possible > 0 ? min(100, round($submitted / $possible * 100, 1)) : 0,
                         'required' => $totalReq, 'isCurrent' => $isCurrent,
                     ];
                     if ($isCurrent && count($datesUntilToday) < count($allDates)) {
@@ -1264,7 +1264,7 @@ switch ($action) {
                         $entry['elapsed_days'] = $elapsedDays;
                         $entry['total_days'] = count($allDates);
                         $entry['possible_so_far'] = $possibleSoFar;
-                        $entry['rate_so_far'] = $possibleSoFar > 0 ? round($submitted / $possibleSoFar * 100, 1) : 0;
+                        $entry['rate_so_far'] = $possibleSoFar > 0 ? min(100, round($submitted / $possibleSoFar * 100, 1)) : 0;
                     }
                     $periods[] = $entry;
                 }
@@ -1277,7 +1277,7 @@ switch ($action) {
                         $periods[] = [
                             'label' => (int)date('n', $ts) . '/' . (int)date('j', $ts) . '(' . $dayNames[date('w', $ts)] . ')',
                             'submitted' => $submitted, 'possible' => $total,
-                            'rate' => $total > 0 ? round($submitted / $total * 100, 1) : 0,
+                            'rate' => $total > 0 ? min(100, round($submitted / $total * 100, 1)) : 0,
                             'required' => 1, 'isCurrent' => ($d === $today),
                         ];
                         $d = date('Y-m-d', strtotime($d . ' +1 day'));
