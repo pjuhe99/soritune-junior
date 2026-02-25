@@ -377,14 +377,27 @@ function getWeeklyCardUsage(int $studentId, string $rewardCode): array {
     $sunday->modify('+6 days');
     $sunday->setTime(23, 59, 59);
 
-    // 순 지급량 (지급 - 차감)으로 계산하여 차감 시 한도 복구
-    $stmt = $db->prepare('
-        SELECT GREATEST(0, COALESCE(SUM(change_amount), 0))
-        FROM junior_reward_log
-        WHERE student_id = ? AND reward_type_id = ?
-          AND created_at BETWEEN ? AND ?
-    ');
-    $stmt->execute([$studentId, $type['id'], $monday->format('Y-m-d H:i:s'), $sunday->format('Y-m-d H:i:s')]);
+    // 체크리스트 기반 카드(passion, posture)는 junior_daily_checklist의 현재 값 기준
+    $checklistFieldMap = array_flip(CHECKLIST_CARD_MAP); // 'passion' => 'zoom_attendance', ...
+    $checklistField = $checklistFieldMap[$rewardCode] ?? null;
+
+    if ($checklistField && in_array($checklistField, ['zoom_attendance', 'posture_king'])) {
+        $stmt = $db->prepare("
+            SELECT COALESCE(SUM(`$checklistField`), 0)
+            FROM junior_daily_checklist
+            WHERE student_id = ? AND check_date BETWEEN ? AND ?
+        ");
+        $stmt->execute([$studentId, $monday->format('Y-m-d'), $sunday->format('Y-m-d')]);
+    } else {
+        // 그 외 카드는 reward_log 기준
+        $stmt = $db->prepare('
+            SELECT GREATEST(0, COALESCE(SUM(change_amount), 0))
+            FROM junior_reward_log
+            WHERE student_id = ? AND reward_type_id = ?
+              AND created_at BETWEEN ? AND ?
+        ');
+        $stmt->execute([$studentId, $type['id'], $monday->format('Y-m-d H:i:s'), $sunday->format('Y-m-d H:i:s')]);
+    }
     $used = (int)$stmt->fetchColumn();
 
     return [
@@ -417,7 +430,11 @@ function changeReward(
     $rewardTypeId = $rewardType['id'];
 
     // 주간 한도 검증 (양수 변경 + 한도 설정된 카드만)
-    if ($changeAmount > 0 && $rewardType['weekly_limit'] !== null) {
+    // 체크리스트 기반 카드(passion, posture)는 체크리스트 UPSERT 후 호출되므로
+    // source='checklist'일 때는 사전검증에서 이미 확인 → 여기서 건너뜀
+    $checklistBasedCards = ['passion', 'posture'];
+    $skipLimitCheck = ($source === 'checklist' && in_array($rewardCode, $checklistBasedCards));
+    if (!$skipLimitCheck && $changeAmount > 0 && $rewardType['weekly_limit'] !== null) {
         $usage = getWeeklyCardUsage($studentId, $rewardCode);
         if ($changeAmount > $usage['remaining']) {
             $typeName = CARD_TYPES[$rewardCode]['name'] ?? $rewardCode;
