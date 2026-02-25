@@ -93,8 +93,6 @@ try {
 
         case 'start_session':
             if ($method !== 'POST') jsonError('POST required', 405);
-            // 임시 비활성화
-            jsonError('테스트를 볼 수 있는 기간이 아니에요. 조금만 기다려주세요!');
             $session = requireStudent();
             $studentId = $session['student_id'];
             $db = getDB();

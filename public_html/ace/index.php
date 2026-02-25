@@ -27,6 +27,13 @@ header('Expires: 0');
             </div>
         </div>
     </div>
+    <!-- 임시 비활성화 오버레이 -->
+    <div id="test-disabled-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:20px;padding:40px 32px;text-align:center;max-width:320px;margin:0 20px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+            <div style="font-size:48px;margin-bottom:16px;">⏳</div>
+            <div style="font-size:18px;font-weight:700;color:#333;line-height:1.6;">아직 테스트를 볼 수 없어.<br>조금만 기다려줘!</div>
+        </div>
+    </div>
     <style>@keyframes spin { to { transform:rotate(360deg); } }</style>
     <script src="/js/toast.js?v=20260221"></script>
     <script src="/js/common.js?v=20260221"></script>
