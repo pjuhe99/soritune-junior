@@ -33,7 +33,7 @@ switch ($action) {
             SELECT s.id, s.name,
                    c.display_name as class_name,
                    s.ace_current_level, s.bravo_current_level,
-                   COALESCE(SUM(sr.quantity * rt.coin_value), 0) as total_coins
+                   COALESCE(SUM(sr.quantity * rt.coin_value), 0) + COALESCE(s.coin_offset, 0) as total_coins
             FROM junior_students s
             LEFT JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_primary = 1 AND cs.is_active = 1
             LEFT JOIN junior_classes c ON cs.class_id = c.id
@@ -103,7 +103,7 @@ switch ($action) {
 
         $stmt = $db->prepare('
             SELECT s.id, s.name,
-                   COALESCE(SUM(sr.quantity * rt.coin_value), 0) as total_coins
+                   COALESCE(SUM(sr.quantity * rt.coin_value), 0) + COALESCE(s.coin_offset, 0) as total_coins
             FROM junior_students s
             JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_primary = 1 AND cs.is_active = 1
             LEFT JOIN junior_student_rewards sr ON s.id = sr.student_id

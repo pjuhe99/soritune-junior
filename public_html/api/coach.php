@@ -272,9 +272,9 @@ switch ($action) {
         // 반 학생 목록 + 코인
         $stmt = $db->prepare('
             SELECT s.id, s.name, s.grade,
-                   COALESCE(SUM(sr.quantity * rt.coin_value), 0) as total_coins
+                   COALESCE(SUM(sr.quantity * rt.coin_value), 0) + COALESCE(s.coin_offset, 0) as total_coins
             FROM junior_students s
-            JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_active = 1
+            JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_primary = 1 AND cs.is_active = 1
             LEFT JOIN junior_student_rewards sr ON s.id = sr.student_id
             LEFT JOIN junior_reward_types rt ON sr.reward_type_id = rt.id
             WHERE cs.class_id = ? AND s.is_active = 1
