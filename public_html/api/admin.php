@@ -431,7 +431,7 @@ switch ($action) {
         // 학생 목록 + 체크리스트 + 카드 현황
         $stmt = $db->prepare('
             SELECT s.id, s.name, s.grade,
-                   dc.zoom_attendance, dc.posture_king, dc.sound_homework, dc.band_mission, dc.leader_king
+                   dc.zoom_attendance, dc.posture_king, dc.sound_homework, dc.band_mission, dc.leader_king, dc.reboot_card
             FROM junior_students s
             JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_active = 1
             LEFT JOIN junior_daily_checklist dc ON s.id = dc.student_id AND dc.check_date = ? AND dc.class_id = ?
@@ -454,6 +454,7 @@ switch ($action) {
             $student['sound_homework'] = (int)($student['sound_homework'] ?? 0);
             $student['band_mission'] = (int)($student['band_mission'] ?? 0);
             $student['leader_king'] = (int)($student['leader_king'] ?? 0);
+            $student['reboot_card'] = (int)($student['reboot_card'] ?? 0);
         }
 
         jsonSuccess([
@@ -487,7 +488,7 @@ switch ($action) {
         try {
             // 기존 체크리스트 조회
             $stmt = $db->prepare('
-                SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king
+                SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
                 FROM junior_daily_checklist
                 WHERE class_id = ? AND check_date = ?
             ');
@@ -505,6 +506,7 @@ switch ($action) {
                     'sound_homework'  => (int)($item['sound_homework'] ?? 0),
                     'band_mission'    => (int)($item['band_mission'] ?? 0),
                     'leader_king'     => (int)($item['leader_king'] ?? 0),
+                    'reboot_card'     => (int)($item['reboot_card'] ?? 0),
                 ];
 
                 $prev = $existing[$studentId] ?? null;
@@ -512,20 +514,23 @@ switch ($action) {
                 // UPSERT
                 $stmt = $db->prepare('
                     INSERT INTO junior_daily_checklist
-                    (student_id, class_id, check_date, coach_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (student_id, class_id, check_date, coach_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
+                    coach_id = VALUES(coach_id),
                     zoom_attendance = VALUES(zoom_attendance),
                     posture_king = VALUES(posture_king),
                     sound_homework = VALUES(sound_homework),
                     band_mission = VALUES(band_mission),
                     leader_king = VALUES(leader_king),
+                    reboot_card = VALUES(reboot_card),
                     updated_at = NOW()
                 ');
                 $stmt->execute([
                     $studentId, $classId, $date, $admin['admin_id'],
                     $fields['zoom_attendance'], $fields['posture_king'],
                     $fields['sound_homework'], $fields['band_mission'], $fields['leader_king'],
+                    $fields['reboot_card'],
                 ]);
 
                 // 체크 변경 시 카드 자동 부여/차감

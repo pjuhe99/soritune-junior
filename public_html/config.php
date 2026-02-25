@@ -478,24 +478,26 @@ function evaluateSteadyForWeek(int $studentId, string $date, ?int $givenBy = nul
     $stmt->execute([$studentId, $week['week_start'], $week['week_end']]);
     $count = (int)$stmt->fetchColumn();
 
-    // 3. 이 주차의 현재 카드 지급 상태
+    // 3. 이 주차의 현재 카드 지급 상태 (마지막 로그 기반으로 멱등성 보장)
     $weekKey = $week['week_start'] . '~' . $week['week_end'];
     $stmt = $db->prepare('SELECT id FROM junior_reward_types WHERE code = ?');
     $stmt->execute(['steady']);
     $rewardTypeId = (int)$stmt->fetchColumn();
 
-    $stmt = $db->prepare('SELECT COALESCE(SUM(change_amount), 0)
-                          FROM junior_reward_log
-                          WHERE student_id = ? AND reward_type_id = ? AND source = ? AND source_detail = ?');
+    $stmt = $db->prepare('SELECT change_amount FROM junior_reward_log
+        WHERE student_id = ? AND reward_type_id = ? AND source = ? AND source_detail = ?
+        ORDER BY id DESC LIMIT 1');
     $stmt->execute([$studentId, $rewardTypeId, 'weekly_steady', $weekKey]);
-    $currentAward = (int)$stmt->fetchColumn();
+    $lastAction = $stmt->fetch();
+
+    $alreadyAwarded = $lastAction && (int)$lastAction['change_amount'] > 0;
 
     $qualified = ($count > 0 && $count >= (int)$week['required_count']);
 
     // 4. 지급 또는 회수
-    if ($qualified && $currentAward <= 0) {
+    if ($qualified && !$alreadyAwarded) {
         return changeReward($studentId, 'steady', 1, 'weekly_steady', $weekKey, $givenBy, $givenByType);
-    } elseif (!$qualified && $currentAward > 0) {
+    } elseif (!$qualified && $alreadyAwarded) {
         return changeReward($studentId, 'steady', -1, 'weekly_steady', $weekKey, $givenBy, $givenByType);
     }
 

@@ -440,13 +440,15 @@ switch ($action) {
             $existing[$row['student_id']] = $row;
         }
 
-        // 주간 카드 한도 사전검증 (숫자형 필드: zoom_attendance → passion, posture_king → posture)
+        // 주간 카드 한도 사전검증 (숫자형 + 불린형 필드 모두)
         $limitErrors = [];
         $numCheckFields = ['zoom_attendance', 'posture_king'];
+        $boolCheckFields = ['band_mission', 'leader_king', 'reboot_card'];
         foreach ($items as $item) {
             $studentId = (int)$item['student_id'];
             $prev = $existing[$studentId] ?? null;
 
+            // 숫자형 필드 사전검증
             foreach ($numCheckFields as $checkField) {
                 $cardCode = CHECKLIST_CARD_MAP[$checkField];
                 $prevVal = $prev ? (int)$prev[$checkField] : 0;
@@ -464,6 +466,30 @@ switch ($action) {
                             'field'      => $checkField,
                             'requested'  => $diff,
                             'remaining'  => $usage['remaining'],
+                            'limit'      => $usage['limit'],
+                            'used'       => $usage['used'],
+                        ];
+                    }
+                }
+            }
+
+            // 불린형 필드 사전검증
+            foreach ($boolCheckFields as $checkField) {
+                $cardCode = CHECKLIST_CARD_MAP[$checkField] ?? null;
+                if (!$cardCode) continue;
+                $prevVal = $prev ? (int)$prev[$checkField] : 0;
+                $newVal = (int)($item[$checkField] ?? 0);
+                if ($newVal === 1 && $prevVal === 0) {
+                    $usage = getWeeklyCardUsage($studentId, $cardCode);
+                    if ($usage['limit'] !== null && $usage['remaining'] <= 0) {
+                        $typeName = CARD_TYPES[$cardCode]['name'] ?? $cardCode;
+                        $limitErrors[] = [
+                            'student_id' => $studentId,
+                            'name'       => $item['name'] ?? '',
+                            'card'       => $typeName,
+                            'field'      => $checkField,
+                            'requested'  => 1,
+                            'remaining'  => 0,
                             'limit'      => $usage['limit'],
                             'used'       => $usage['used'],
                         ];
@@ -502,6 +528,7 @@ switch ($action) {
                     (student_id, class_id, check_date, coach_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
+                    coach_id = VALUES(coach_id),
                     zoom_attendance = VALUES(zoom_attendance),
                     posture_king = VALUES(posture_king),
                     sound_homework = VALUES(sound_homework),

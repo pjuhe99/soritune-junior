@@ -512,6 +512,7 @@
                     + '<td style="text-align:center;">' + chk('sound_homework', s.sound_homework) + '</td>'
                     + '<td style="text-align:center;">' + chk('band_mission', s.band_mission) + '</td>'
                     + '<td style="text-align:center;">' + chk('leader_king', s.leader_king) + '</td>'
+                    + '<td style="text-align:center;">' + chk('reboot_card', s.reboot_card) + '</td>'
                     + '<td style="text-align:center;">' + App.coinBadge(s.total_coins) + '</td>'
                     + '</tr>';
             }).join('');
@@ -555,6 +556,7 @@
                                 <th style="text-align:center; min-width:60px;">소리과제</th>
                                 <th style="text-align:center; min-width:60px;">밴드미션</th>
                                 <th style="text-align:center; min-width:60px;">리더왕</th>
+                                <th style="text-align:center; min-width:60px;">리부트</th>
                                 <th style="text-align:center; min-width:80px;">총 코인</th>
                             </tr>
                         </thead>
@@ -576,30 +578,38 @@
 
             document.getElementById('btn-back-classes').addEventListener('click', loadStudents);
             document.getElementById('btn-save-checklist').addEventListener('click', async () => {
-                const items = [];
-                document.querySelectorAll('#checklist-tbody tr').forEach(tr => {
-                    const studentId = parseInt(tr.dataset.studentId);
-                    const item = { student_id: studentId };
+                const btn = document.getElementById('btn-save-checklist');
+                if (btn.disabled) return;
+                btn.disabled = true;
 
-                    tr.querySelectorAll('.check-field').forEach(checkbox => {
-                        const field = checkbox.dataset.field;
-                        item[field] = checkbox.checked ? 1 : 0;
+                try {
+                    const items = [];
+                    document.querySelectorAll('#checklist-tbody tr').forEach(tr => {
+                        const studentId = parseInt(tr.dataset.studentId);
+                        const item = { student_id: studentId };
+
+                        tr.querySelectorAll('.check-field').forEach(checkbox => {
+                            const field = checkbox.dataset.field;
+                            item[field] = checkbox.checked ? 1 : 0;
+                        });
+
+                        items.push(item);
                     });
 
-                    items.push(item);
-                });
+                    App.showLoading();
+                    const saveResult = await App.post('/api/admin.php?action=teacher_save_checklist', {
+                        class_id: classId,
+                        date: date,
+                        items: items,
+                    });
+                    App.hideLoading();
 
-                App.showLoading();
-                const saveResult = await App.post('/api/admin.php?action=teacher_save_checklist', {
-                    class_id: classId,
-                    date: date,
-                    items: items,
-                });
-                App.hideLoading();
-
-                if (saveResult.success) {
-                    Toast.success('체크리스트가 저장되었습니다');
-                    loadTeacherClassDetail(classId); // 새로고침
+                    if (saveResult.success) {
+                        Toast.success('체크리스트가 저장되었습니다');
+                        loadTeacherClassDetail(classId); // 새로고침
+                    }
+                } finally {
+                    btn.disabled = false;
                 }
             });
         }
@@ -694,8 +704,8 @@
             const { student, rewards, total_coins, checklists, ace_reports, bravo_reports } = result;
             const container = document.getElementById('dashboard-content');
 
-            const fields = ['zoom_attendance', 'posture_king', 'sound_homework', 'band_mission', 'leader_king'];
-            const labels = ['줌출석', '자세왕', '소리과제', '밴드미션', '리더왕'];
+            const fields = ['zoom_attendance', 'posture_king', 'sound_homework', 'band_mission', 'leader_king', 'reboot_card'];
+            const labels = ['줌출석', '자세왕', '소리과제', '밴드미션', '리더왕', '리부트'];
 
             container.innerHTML = `
                 <button class="btn btn-secondary btn-sm" id="btn-back-list" style="margin-bottom:16px;">← 목록으로</button>

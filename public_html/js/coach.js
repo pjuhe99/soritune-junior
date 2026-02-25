@@ -596,42 +596,49 @@ const CoachApp = (() => {
 
     async function saveChecklist() {
         if (!currentClassId) return;
+        const btn = document.getElementById('btn-save-checklist');
+        if (btn && btn.disabled) return;
+        if (btn) btn.disabled = true;
 
-        const rows = document.querySelectorAll('.checklist-row');
-        const items = [];
+        try {
+            const rows = document.querySelectorAll('.checklist-row');
+            const items = [];
 
-        rows.forEach(row => {
-            const studentId = parseInt(row.dataset.studentId);
-            const item = { student_id: studentId, name: row.dataset.studentName || '' };
-            row.querySelectorAll('[data-field]').forEach(el => {
-                if (el.type === 'number') {
-                    item[el.dataset.field] = parseInt(el.value) || 0;
-                } else {
-                    item[el.dataset.field] = el.checked ? 1 : 0;
-                }
+            rows.forEach(row => {
+                const studentId = parseInt(row.dataset.studentId);
+                const item = { student_id: studentId, name: row.dataset.studentName || '' };
+                row.querySelectorAll('[data-field]').forEach(el => {
+                    if (el.type === 'number') {
+                        item[el.dataset.field] = parseInt(el.value) || 0;
+                    } else {
+                        item[el.dataset.field] = el.checked ? 1 : 0;
+                    }
+                });
+                items.push(item);
             });
-            items.push(item);
-        });
 
-        App.showLoading();
-        const result = await App.api('/api/coach.php?action=checklist_save', {
-            method: 'POST',
-            data: { class_id: currentClassId, date: App.formatDate(checklistDate), items },
-            showError: false,
-        });
-        App.hideLoading();
-
-        if (result.success) {
-            Toast.success('체크리스트가 저장되었습니다');
-            loadChecklist(); // 주간 한도 배지 갱신
-        } else if (result.limit_errors) {
-            const msgs = result.limit_errors.map(e => {
-                const name = e.name || `학생#${e.student_id}`;
-                return `${name}: ${e.card} 요청 ${e.requested}장, 남은 ${e.remaining}장`;
+            App.showLoading();
+            const result = await App.api('/api/coach.php?action=checklist_save', {
+                method: 'POST',
+                data: { class_id: currentClassId, date: App.formatDate(checklistDate), items },
+                showError: false,
             });
-            Toast.error('주간 카드 한도 초과\n' + msgs.join('\n'));
-        } else if (result.error) {
-            Toast.error(result.error);
+            App.hideLoading();
+
+            if (result.success) {
+                Toast.success('체크리스트가 저장되었습니다');
+                loadChecklist(); // 주간 한도 배지 갱신
+            } else if (result.limit_errors) {
+                const msgs = result.limit_errors.map(e => {
+                    const name = e.name || `학생#${e.student_id}`;
+                    return `${name}: ${e.card} 요청 ${e.requested}장, 남은 ${e.remaining}장`;
+                });
+                Toast.error('주간 카드 한도 초과\n' + msgs.join('\n'));
+            } else if (result.error) {
+                Toast.error(result.error);
+            }
+        } finally {
+            if (btn) btn.disabled = false;
         }
     }
 
