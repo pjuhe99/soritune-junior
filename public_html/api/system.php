@@ -105,7 +105,16 @@ switch ($action) {
             $limit = 50;
             $offset = ($page - 1) * $limit;
 
-            $where = ['s.is_active = 1'];
+            $statusFilter = trim($_GET['status_filter'] ?? 'active');
+            if ($statusFilter === 'withdrawn') {
+                $where = ["s.status = 'withdrawn'"];
+            } elseif ($statusFilter === 'paused') {
+                $where = ["s.status = 'paused'"];
+            } elseif ($statusFilter === 'inactive') {
+                $where = ['s.is_active = 0'];
+            } else {
+                $where = ['s.is_active = 1'];
+            }
             $params = [];
 
             if ($search) {
@@ -121,6 +130,7 @@ switch ($action) {
 
             $stmt = $db->prepare("
                 SELECT s.id, s.name, s.phone, s.phone_last4, s.grade, s.soritune_id,
+                       s.status, s.status_changed_at, s.status_memo,
                        cs.class_id, c.display_name as class_name, s.created_at
                 FROM junior_students s
                 LEFT JOIN junior_class_students cs ON s.id = cs.student_id AND cs.is_primary = 1 AND cs.is_active = 1
@@ -206,13 +216,48 @@ switch ($action) {
                 $id = (int)($input['id'] ?? 0);
                 if (!$id) jsonError('ID가 필요합니다');
 
-                $stmt = $db->prepare('UPDATE junior_students SET is_active = 0 WHERE id = ?');
-                $stmt->execute([$id]);
+                $newStatus = $input['status'] ?? 'withdrawn';
+                if (!in_array($newStatus, ['withdrawn', 'paused'])) $newStatus = 'withdrawn';
+                $memo = trim($input['status_memo'] ?? '');
 
-                auditLog('junior_students', $id, 'delete', null, null, null, '학생 비활성화',
+                $stmt = $db->prepare('UPDATE junior_students SET is_active = 0, status = ?, status_changed_at = NOW(), status_memo = ? WHERE id = ?');
+                $stmt->execute([$newStatus, $memo ?: null, $id]);
+
+                $label = $newStatus === 'withdrawn' ? '탈퇴' : '중단';
+                auditLog('junior_students', $id, 'delete', 'status', 'active', $newStatus,
+                    "학생 {$label} 처리" . ($memo ? ": {$memo}" : ''),
                     $admin['system_id'], 'system_admin', $admin['system_name']);
 
-                jsonSuccess([], '삭제되었습니다');
+                jsonSuccess([], "{$label} 처리되었습니다");
+            }
+
+            if ($subAction === 'change_status') {
+                $id = (int)($input['id'] ?? 0);
+                $newStatus = $input['status'] ?? '';
+                $memo = trim($input['status_memo'] ?? '');
+
+                if (!$id) jsonError('ID가 필요합니다');
+                if (!in_array($newStatus, ['active', 'withdrawn', 'paused'])) jsonError('올바른 상태를 선택해 주세요');
+
+                $stmt = $db->prepare('SELECT status, name FROM junior_students WHERE id = ?');
+                $stmt->execute([$id]);
+                $current = $stmt->fetch();
+                if (!$current) jsonError('학생을 찾을 수 없습니다');
+
+                $oldStatus = $current['status'];
+                if ($oldStatus === $newStatus) jsonError('이미 같은 상태입니다');
+
+                $isActive = ($newStatus === 'active') ? 1 : 0;
+
+                $stmt = $db->prepare('UPDATE junior_students SET is_active = ?, status = ?, status_changed_at = NOW(), status_memo = ? WHERE id = ?');
+                $stmt->execute([$isActive, $newStatus, $memo ?: null, $id]);
+
+                $labels = ['active' => '활성', 'withdrawn' => '탈퇴', 'paused' => '중단'];
+                auditLog('junior_students', $id, 'update', 'status', $oldStatus, $newStatus,
+                    "{$current['name']} 상태: {$labels[$oldStatus]} → {$labels[$newStatus]}" . ($memo ? " ({$memo})" : ''),
+                    $admin['system_id'], 'system_admin', $admin['system_name']);
+
+                jsonSuccess([], "{$labels[$newStatus]} 처리되었습니다");
             }
         }
         break;
@@ -770,7 +815,7 @@ switch ($action) {
         jsonSuccess(['count' => $count], "{$count}명의 학생이 반에 배정되었습니다");
         break;
 
-    // 일괄 학생 삭제 (비활성화)
+    // 일괄 학생 상태 변경 (탈퇴/중단)
     case 'bulk_delete_students':
         if ($method !== 'POST') jsonError('POST만 허용됩니다', 405);
         $admin = requireSystem();
@@ -779,6 +824,10 @@ switch ($action) {
 
         if (empty($studentIds)) jsonError('학생 목록이 필요합니다');
 
+        $newStatus = $input['status'] ?? 'withdrawn';
+        if (!in_array($newStatus, ['withdrawn', 'paused'])) $newStatus = 'withdrawn';
+        $label = $newStatus === 'withdrawn' ? '탈퇴' : '중단';
+
         $db = getDB();
         $count = 0;
 
@@ -786,15 +835,15 @@ switch ($action) {
             $sid = (int)$sid;
             if (!$sid) continue;
 
-            $stmt = $db->prepare('UPDATE junior_students SET is_active = 0 WHERE id = ?');
-            $stmt->execute([$sid]);
+            $stmt = $db->prepare('UPDATE junior_students SET is_active = 0, status = ?, status_changed_at = NOW() WHERE id = ?');
+            $stmt->execute([$newStatus, $sid]);
 
-            auditLog('junior_students', $sid, 'delete', null, null, null, '일괄 삭제',
+            auditLog('junior_students', $sid, 'delete', 'status', 'active', $newStatus, "일괄 {$label} 처리",
                 $admin['system_id'], 'system_admin', $admin['system_name']);
             $count++;
         }
 
-        jsonSuccess(['count' => $count], "{$count}명의 학생이 삭제되었습니다");
+        jsonSuccess(['count' => $count], "{$count}명의 학생이 {$label} 처리되었습니다");
         break;
 
     // 부모-학생 연결

@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>시스템 관리 - 소리튠 주니어</title>
-    <link rel="stylesheet" href="/css/common.css?v=20260215g">
-    <link rel="stylesheet" href="/css/toast.css?v=20260215g">
-    <link rel="stylesheet" href="/css/admin.css?v=20260215g">
-    <link rel="stylesheet" href="/css/admin-dock.css?v=20260215g">
+    <link rel="stylesheet" href="/css/common.css?v=20260223g">
+    <link rel="stylesheet" href="/css/toast.css?v=20260223g">
+    <link rel="stylesheet" href="/css/admin.css?v=20260223g">
+    <link rel="stylesheet" href="/css/admin-dock.css?v=20260223g">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
     .date-bar{display:flex;gap:4px;overflow-x:auto;padding:8px 0;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
@@ -163,7 +163,11 @@
                         총 <span class="count-num">-</span>명
                     </div>
                 </div>
-                <div class="toolbar" style="margin-bottom:8px;">
+                <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; align-items:center;">
+                    <button class="btn btn-sm student-status-chip" data-status="active" style="border-radius:20px; font-size:12px; padding:4px 14px; background:#37474F; color:#fff;">활성</button>
+                    <button class="btn btn-sm btn-secondary student-status-chip" data-status="withdrawn" style="border-radius:20px; font-size:12px; padding:4px 14px;">탈퇴</button>
+                    <button class="btn btn-sm btn-secondary student-status-chip" data-status="paused" style="border-radius:20px; font-size:12px; padding:4px 14px;">중단</button>
+                    <div style="flex:1;"></div>
                     <button class="btn btn-primary btn-sm" id="btn-add-student" style="background:#37474F;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px; margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         학생 추가
@@ -175,7 +179,7 @@
                     <div class="bulk-selected-count"><span id="bulk-count">0</span>명 선택됨</div>
                     <div class="bulk-actions">
                         <button class="bulk-btn bulk-btn-assign" id="bulk-assign">반 배정</button>
-                        <button class="bulk-btn bulk-btn-delete" id="bulk-delete">삭제</button>
+                        <button class="bulk-btn bulk-btn-delete" id="bulk-delete">탈퇴/중단</button>
                         <button class="bulk-btn bulk-btn-cancel" id="bulk-cancel">취소</button>
                     </div>
                 </div>
@@ -258,8 +262,8 @@
         </div>
     </div>
 
-    <script src="/js/toast.js?v=20260215g"></script>
-    <script src="/js/common.js?v=20260215g"></script>
+    <script src="/js/toast.js?v=20260223g"></script>
+    <script src="/js/common.js?v=20260223g"></script>
     <script>
     const SystemApp = (() => {
         let currentRole = '';
@@ -268,6 +272,7 @@
         let allAdminsData = [];
         let allClassesData = [];
         let studentPage = 1;
+        let studentStatusFilter = 'active';
         let assignView = 'daily';
         let assignSort = { col: '', dir: 'desc' };
         let assignStateFromHash = null;
@@ -336,6 +341,23 @@
             document.getElementById('student-class-filter').addEventListener('change', () => {
                 studentPage = 1;
                 loadStudents();
+            });
+
+            // 상태 필터 칩
+            document.querySelectorAll('.student-status-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    document.querySelectorAll('.student-status-chip').forEach(c => {
+                        c.style.background = '';
+                        c.style.color = '';
+                        c.classList.add('btn-secondary');
+                    });
+                    chip.classList.remove('btn-secondary');
+                    chip.style.background = '#37474F';
+                    chip.style.color = '#fff';
+                    studentStatusFilter = chip.dataset.status;
+                    studentPage = 1;
+                    loadStudents();
+                });
             });
 
             // 학생 추가
@@ -936,7 +958,7 @@
         async function loadStudents() {
             const search = document.getElementById('student-search').value.trim();
             const classId = document.getElementById('student-class-filter').value;
-            const params = { search, page: studentPage };
+            const params = { search, page: studentPage, status_filter: studentStatusFilter };
             if (classId) params.class_id = classId;
 
             const result = await App.get('/api/system.php?action=students', params);
@@ -964,6 +986,7 @@
 
             const totalPages = Math.ceil(result.total / 50);
 
+            const showStatus = studentStatusFilter !== 'active';
             container.innerHTML = `
                 <table class="data-table">
                     <thead><tr>
@@ -971,15 +994,22 @@
                         <th>학생</th>
                         <th>반</th>
                         <th>나이</th>
+                        ${showStatus ? '<th>상태</th>' : ''}
                         <th>등록일</th>
                         <th class="col-actions">관리</th>
                     </tr></thead>
                     <tbody>
-                        ${result.students.map(s => `
+                        ${result.students.map(s => {
+                            const statusBadge = s.status === 'withdrawn'
+                                ? '<span class="role-badge" style="background:#FFEBEE;color:#C62828;">탈퇴</span>'
+                                : s.status === 'paused'
+                                ? '<span class="role-badge" style="background:#FFF3E0;color:#E65100;">중단</span>'
+                                : '<span class="role-badge" style="background:#E8F5E9;color:#2E7D32;">활성</span>';
+                            return `
                             <tr data-id="${s.id}">
                                 <td class="col-check"><input type="checkbox" value="${s.id}" class="student-check"></td>
                                 <td>
-                                    <div class="student-name-cell" onclick="SystemApp.showStudentProfile(${s.id})" style="cursor:pointer;">
+                                    <div class="student-name-cell" onclick="SystemApp.editStudent(${s.id}, '${escapeHtml(s.name)}')" style="cursor:pointer;">
                                         <div class="student-avatar">${s.name.charAt(0)}</div>
                                         <div class="student-info">
                                             <div class="student-primary">${s.name}</div>
@@ -989,12 +1019,13 @@
                                 </td>
                                 <td>${s.class_name ? `<span class="role-badge role-badge-coach">${s.class_name}</span>` : '<span style="color:#BDBDBD;">미배정</span>'}</td>
                                 <td>${s.grade ? s.grade + '세' : '<span style="color:#BDBDBD;">-</span>'}</td>
+                                ${showStatus ? `<td>${statusBadge}</td>` : ''}
                                 <td style="font-size:12px; color:#757575;">${App.formatDate(s.created_at, 'YYYY-MM-DD')}</td>
                                 <td class="col-actions">
                                     <button class="btn btn-sm btn-secondary" onclick="SystemApp.editStudent(${s.id}, '${escapeHtml(s.name)}')">수정</button>
                                 </td>
-                            </tr>
-                        `).join('')}
+                            </tr>`;
+                        }).join('')}
                     </tbody>
                 </table>
 
@@ -1133,25 +1164,38 @@
             };
         }
 
-        // 일괄 삭제
+        // 일괄 상태 변경
         function bulkDeleteStudents() {
             if (selectedStudents.size === 0) return;
 
-            App.confirm(`선택한 ${selectedStudents.size}명의 학생을 삭제하시겠습니까?`, async () => {
+            const content = `
+                <div style="margin-bottom:14px; font-size:14px;">
+                    선택한 <strong>${selectedStudents.size}명</strong>의 학생을 어떤 상태로 변경하시겠습니까?
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-block" style="background:#C62828; color:#fff;" id="bulk-withdrawn">탈퇴 처리</button>
+                    <button class="btn btn-block" style="background:#E65100; color:#fff;" id="bulk-paused">중단 처리</button>
+                </div>
+            `;
+            const modal = App.openModal('일괄 상태 변경', content);
+
+            const handleBulk = async (status) => {
                 App.showLoading();
                 const result = await App.post('/api/system.php?action=bulk_delete_students', {
-                    student_ids: [...selectedStudents],
+                    student_ids: [...selectedStudents], status,
                 });
                 App.hideLoading();
-
                 if (result.success) {
+                    App.closeModal(modal);
                     Toast.success(result.message);
                     selectedStudents.clear();
                     updateBulkBar();
                     loadStudents();
                     loadDashboard();
                 }
-            });
+            };
+            modal.querySelector('#bulk-withdrawn').onclick = () => handleBulk('withdrawn');
+            modal.querySelector('#bulk-paused').onclick = () => handleBulk('paused');
         }
 
         function escapeHtml(str) {
@@ -1253,85 +1297,145 @@
         }
 
         function editStudent(id, name) {
-            // 기존 데이터 로드
             const student = allStudentsData.find(s => s.id === id);
+            const isActive = !student?.status || student.status === 'active';
             const classOptions = allClassesData.map(c =>
                 `<option value="${c.id}" ${student?.class_name === c.display_name ? 'selected' : ''}>${c.display_name}</option>`
             ).join('');
 
-            const content = `
-                <div class="form-group">
-                    <label class="form-label">이름</label>
-                    <input type="text" id="edit-name" class="form-input" value="${name}">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">전화번호</label>
-                    <input type="tel" id="edit-phone" class="form-input" value="${student?.phone || ''}" placeholder="010-1234-5678">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">나이</label>
-                    <input type="text" id="edit-grade" class="form-input" value="${student?.grade || ''}" placeholder="예: 10">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">반 변경</label>
-                    <select id="edit-class" class="form-input">
-                        <option value="">변경 안함</option>
-                        ${classOptions}
-                    </select>
-                </div>
+            const statusInfo = !isActive ? `
+                <div style="margin-bottom:12px; padding:10px 12px; border-radius:10px; background:${student.status === 'withdrawn' ? '#FFEBEE' : '#FFF3E0'};">
+                    <div style="font-weight:700; font-size:13px; color:${student.status === 'withdrawn' ? '#C62828' : '#E65100'};">
+                        ${student.status === 'withdrawn' ? '탈퇴' : '중단'} 상태
+                    </div>
+                    ${student.status_changed_at ? `<div style="font-size:11px; color:#999; margin-top:2px;">${App.formatDate(student.status_changed_at, 'YYYY-MM-DD')} 처리</div>` : ''}
+                    ${student.status_memo ? `<div style="font-size:11px; color:#666; margin-top:2px;">메모: ${student.status_memo}</div>` : ''}
+                </div>` : '';
+
+            const actionButtons = isActive ? `
                 <div style="display:flex; gap:8px; margin-top:8px;">
                     <button class="btn btn-block" style="background:#1565C0; color:#fff;" id="btn-view-cards">카드 현황</button>
                 </div>
                 <div style="display:flex; gap:8px; margin-top:12px;">
                     <button class="btn btn-block" style="background:#37474F; color:#fff;" id="btn-update">수정</button>
-                    <button class="btn btn-danger btn-block" id="btn-delete" style="background:#F44336; color:#fff;">삭제</button>
                 </div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button class="btn btn-block" style="background:#E65100; color:#fff;" id="btn-pause">중단 처리</button>
+                    <button class="btn btn-block" style="background:#C62828; color:#fff;" id="btn-withdraw">탈퇴 처리</button>
+                </div>` : `
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button class="btn btn-block" style="background:#1565C0; color:#fff;" id="btn-view-cards">카드 현황</button>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button class="btn btn-block" style="background:#4CAF50; color:#fff;" id="btn-reactivate">다시 활성화</button>
+                </div>`;
+
+            const content = `
+                ${statusInfo}
+                <div class="form-group">
+                    <label class="form-label">이름</label>
+                    <input type="text" id="edit-name" class="form-input" value="${name}" ${!isActive ? 'disabled' : ''}>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">전화번호</label>
+                    <input type="tel" id="edit-phone" class="form-input" value="${student?.phone || ''}" placeholder="010-1234-5678" ${!isActive ? 'disabled' : ''}>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">나이</label>
+                    <input type="text" id="edit-grade" class="form-input" value="${student?.grade || ''}" placeholder="예: 10" ${!isActive ? 'disabled' : ''}>
+                </div>
+                ${isActive ? `<div class="form-group">
+                    <label class="form-label">반 변경</label>
+                    <select id="edit-class" class="form-input">
+                        <option value="">변경 안함</option>
+                        ${classOptions}
+                    </select>
+                </div>` : ''}
+                ${actionButtons}
             `;
             const modal = App.openModal('학생 수정', content);
+
             modal.querySelector('#btn-view-cards').onclick = () => {
                 App.closeModal(modal);
                 showStudentProfile(id);
             };
-            modal.querySelector('#btn-update').onclick = async () => {
-                const updateName = modal.querySelector('#edit-name').value.trim();
-                if (!updateName) { Toast.warning('이름을 입력해 주세요'); return; }
 
-                App.showLoading();
-                const result = await App.post('/api/system.php?action=students', {
-                    sub_action: 'update',
-                    id,
-                    name: updateName,
-                    phone: modal.querySelector('#edit-phone').value.trim(),
-                    grade: modal.querySelector('#edit-grade').value.trim(),
-                });
+            if (isActive) {
+                modal.querySelector('#btn-update').onclick = async () => {
+                    const updateName = modal.querySelector('#edit-name').value.trim();
+                    if (!updateName) { Toast.warning('이름을 입력해 주세요'); return; }
 
-                // 반 변경
-                const newClassId = parseInt(modal.querySelector('#edit-class').value);
-                if (newClassId) {
-                    await App.post('/api/system.php?action=assign_class', {
-                        student_id: id,
-                        class_id: newClassId,
-                        is_primary: 1,
+                    App.showLoading();
+                    const result = await App.post('/api/system.php?action=students', {
+                        sub_action: 'update', id,
+                        name: updateName,
+                        phone: modal.querySelector('#edit-phone').value.trim(),
+                        grade: modal.querySelector('#edit-grade').value.trim(),
                     });
-                }
-                App.hideLoading();
-
-                if (result.success) {
-                    App.closeModal(modal);
-                    Toast.success('수정되었습니다');
-                    loadStudents();
-                }
-            };
-            modal.querySelector('#btn-delete').onclick = () => {
-                App.confirm('정말 삭제하시겠습니까?', async () => {
-                    const result = await App.post('/api/system.php?action=students', { sub_action: 'delete', id });
+                    const newClassId = parseInt(modal.querySelector('#edit-class').value);
+                    if (newClassId) {
+                        await App.post('/api/system.php?action=assign_class', {
+                            student_id: id, class_id: newClassId, is_primary: 1,
+                        });
+                    }
+                    App.hideLoading();
                     if (result.success) {
                         App.closeModal(modal);
-                        Toast.success('삭제되었습니다');
+                        Toast.success('수정되었습니다');
                         loadStudents();
-                        loadDashboard();
                     }
+                };
+                modal.querySelector('#btn-pause').onclick = () => changeStudentStatus(id, 'paused', modal);
+                modal.querySelector('#btn-withdraw').onclick = () => changeStudentStatus(id, 'withdrawn', modal);
+            } else {
+                modal.querySelector('#btn-reactivate').onclick = () => {
+                    App.confirm('이 학생을 다시 활성화하시겠습니까?', async () => {
+                        App.showLoading();
+                        const result = await App.post('/api/system.php?action=students', {
+                            sub_action: 'change_status', id, status: 'active',
+                        });
+                        App.hideLoading();
+                        if (result.success) {
+                            App.closeModal(modal);
+                            Toast.success(result.message);
+                            loadStudents();
+                            loadDashboard();
+                        }
+                    });
+                };
+            }
+        }
+
+        function changeStudentStatus(studentId, newStatus, parentModal) {
+            const labels = { withdrawn: '탈퇴', paused: '중단' };
+            const colors = { withdrawn: '#C62828', paused: '#E65100' };
+            const label = labels[newStatus];
+
+            const content = `
+                <div style="margin-bottom:12px; font-size:14px; color:#333;">
+                    이 학생을 <strong style="color:${colors[newStatus]};">${label}</strong> 처리하시겠습니까?
+                </div>
+                <div class="form-group">
+                    <label class="form-label">메모 (선택)</label>
+                    <input type="text" id="status-memo" class="form-input" placeholder="예: 환불 완료 / 다음 학기 재등록 예정">
+                </div>
+                <button class="btn btn-block" style="background:${colors[newStatus]}; color:#fff; margin-top:8px;" id="btn-confirm-status">${label} 처리</button>
+            `;
+            const modal = App.openModal(`${label} 처리`, content);
+            modal.querySelector('#btn-confirm-status').onclick = async () => {
+                const memo = modal.querySelector('#status-memo').value.trim();
+                App.showLoading();
+                const result = await App.post('/api/system.php?action=students', {
+                    sub_action: 'change_status', id: studentId, status: newStatus, status_memo: memo,
                 });
+                App.hideLoading();
+                if (result.success) {
+                    App.closeModal(modal);
+                    if (parentModal) App.closeModal(parentModal);
+                    Toast.success(result.message);
+                    loadStudents();
+                    loadDashboard();
+                }
             };
         }
 
@@ -2784,6 +2888,6 @@
         return { editStudent, editAdmin, editClass, goPage, createInvite, drillClass, calendarDayClick, toggleSort, quickDate, toggleCheck, adjustNum, showStudentProfile, showClassDetail, impersonateAdmin, impersonateStudent, dashDateMove, dashDateChange, dashDateToday, generateSetupLink };
     })();
     </script>
-    <script src="/js/admin-dock.js?v=20260215g" data-adock-active="system"></script>
+    <script src="/js/admin-dock.js?v=20260223g" data-adock-active="system"></script>
 </body>
 </html>
