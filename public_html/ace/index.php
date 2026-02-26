@@ -33,6 +33,7 @@ header('Expires: 0');
             <div style="font-size:48px;margin-bottom:16px;">⏳</div>
             <div style="font-size:18px;font-weight:700;color:#333;line-height:1.6;">아직 테스트를 볼 수 없어.<br>조금만 기다려줘!</div>
             <div id="test-date-info" style="display:none;margin-top:14px;font-size:14px;color:#888;line-height:1.6;"></div>
+            <a href="/" style="display:inline-block;margin-top:20px;padding:10px 28px;background:#FF5722;color:#fff;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;">메인으로 돌아가기</a>
         </div>
     </div>
     <style>@keyframes spin { to { transform:rotate(360deg); } }</style>
