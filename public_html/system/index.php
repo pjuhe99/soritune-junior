@@ -125,6 +125,7 @@
                 <button class="tab-btn" data-tab="messages">대화 현황</button>
                 <button class="tab-btn" data-tab="cards">카드 관리</button>
                 <button class="tab-btn" data-tab="settings">설정</button>
+                <button class="tab-btn" data-tab="test-dates">테스트 관리</button>
                 <button class="tab-btn" data-tab="audit">감사 로그</button>
             </div>
 
@@ -258,6 +259,10 @@
                 <div id="settings-content"></div>
             </div>
 
+            <div class="tab-content" id="tab-test-dates">
+                <div id="test-dates-content"></div>
+            </div>
+
             <div class="tab-content" id="tab-audit">
                 <div class="toolbar">
                     <div class="toolbar-search" style="min-width:150px;">
@@ -345,6 +350,7 @@
                 else if (tab === 'messages') loadMessages();
                 else if (tab === 'cards') loadCards();
                 else if (tab === 'settings') loadSettings();
+                else if (tab === 'test-dates') loadTestDates();
                 else if (tab === 'audit') loadAudit();
             });
 
@@ -448,7 +454,7 @@
 
             // 초기 데이터 로드 (URL hash에서 탭 + 파라미터 복원)
             const { tab: hashTab, params: hashParams } = parseHash();
-            const validTabs = ['dashboard', 'students', 'admins', 'classes', 'assignments', 'messages', 'settings', 'audit'];
+            const validTabs = ['dashboard', 'students', 'admins', 'classes', 'assignments', 'messages', 'cards', 'settings', 'test-dates', 'audit'];
             if (hashTab === 'assignments' && hashParams) {
                 // 과제 현황 상태 복원 준비
                 assignStateFromHash = {
@@ -3114,6 +3120,68 @@
                 `;
             } catch (e) {
                 Toast.error('링크 생성 실패: ' + e.message);
+            }
+        }
+
+        async function loadTestDates() {
+            const cont = document.getElementById('test-dates-content');
+            cont.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">로딩 중...</div>';
+            const r = await App.get('/api/system.php?action=test_dates');
+            if (!r.success) { cont.innerHTML = '<div style="color:red;padding:20px;">불러오기 실패</div>'; return; }
+
+            const dates = r.test_dates || [];
+            const aceList = dates.filter(d => d.test_type.startsWith('ace_'));
+            const bravoList = dates.filter(d => d.test_type.startsWith('bravo_'));
+
+            function renderGroup(title, list) {
+                let rows = list.map(d => `
+                    <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F3F4F6;" data-test-type="${d.test_type}">
+                        <div style="min-width:100px;font-weight:600;color:#333;">${d.test_label.replace(/</g,'&lt;')}</div>
+                        <label style="font-size:12px;color:#888;">시작일</label>
+                        <input type="date" class="form-input td-start" value="${d.start_date || ''}" style="padding:6px 10px;font-size:13px;width:160px;">
+                        <label style="font-size:12px;color:#888;">종료일</label>
+                        <input type="date" class="form-input td-end" value="${d.end_date || ''}" style="padding:6px 10px;font-size:13px;width:160px;">
+                        <button class="btn btn-sm btn-secondary" onclick="this.closest('[data-test-type]').querySelector('.td-start').value='';this.closest('[data-test-type]').querySelector('.td-end').value='';" style="font-size:11px;">초기화</button>
+                    </div>
+                `).join('');
+                return `<div style="margin-bottom:28px;">
+                    <div style="font-size:16px;font-weight:700;color:#37474F;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #37474F;">${title}</div>
+                    ${rows}
+                </div>`;
+            }
+
+            cont.innerHTML = `
+                <div style="max-width:720px;">
+                    <div style="margin-bottom:16px;padding:12px 16px;background:#FFF8E1;border-radius:8px;font-size:13px;color:#F57F17;line-height:1.6;">
+                        날짜를 비워두면 해당 테스트에 접근 제한이 없습니다. 시작일/종료일을 설정하면 해당 기간에만 테스트를 볼 수 있습니다.
+                    </div>
+                    ${renderGroup('ACE 테스트', aceList)}
+                    ${renderGroup('Bravo Jr 테스트', bravoList)}
+                    <div style="text-align:right;padding-top:12px;">
+                        <button class="btn btn-primary" id="btn-save-test-dates" style="background:#37474F;padding:10px 28px;">저장</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('btn-save-test-dates').addEventListener('click', saveTestDates);
+        }
+
+        async function saveTestDates() {
+            const rows = document.querySelectorAll('#test-dates-content [data-test-type]');
+            const dates = [];
+            rows.forEach(row => {
+                dates.push({
+                    test_type: row.dataset.testType,
+                    start_date: row.querySelector('.td-start').value || null,
+                    end_date: row.querySelector('.td-end').value || null,
+                });
+            });
+
+            const r = await App.post('/api/system.php?action=update_test_dates', { dates });
+            if (r.success) {
+                Toast.success(r.message || '저장되었습니다');
+            } else {
+                Toast.error(r.error || '저장 실패');
             }
         }
 

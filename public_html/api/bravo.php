@@ -127,6 +127,23 @@ try {
             $bravoLevel = (int)($input['level'] ?? 0);
             if ($bravoLevel < 1 || $bravoLevel > 9) jsonError('유효하지 않은 레벨');
 
+            // 테스트 날짜 가드
+            if ($bravoLevel >= 1 && $bravoLevel <= 6) {
+                $testType = 'bravo_' . $bravoLevel;
+                $tdStmt = $db->prepare('SELECT start_date, end_date FROM junior_test_dates WHERE test_type = ?');
+                $tdStmt->execute([$testType]);
+                $td = $tdStmt->fetch();
+                if ($td) {
+                    $today = date('Y-m-d');
+                    if ($td['start_date'] && $today < $td['start_date']) {
+                        jsonError('테스트 기간이 아닙니다. 시작일: ' . $td['start_date']);
+                    }
+                    if ($td['end_date'] && $today > $td['end_date']) {
+                        jsonError('테스트 기간이 종료되었습니다. 종료일: ' . $td['end_date']);
+                    }
+                }
+            }
+
             // ACE 3 통과 확인
             $stmt = $db->prepare('SELECT ace_current_level, bravo_current_level FROM junior_students WHERE id = ?');
             $stmt->execute([$studentId]);

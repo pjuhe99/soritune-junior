@@ -1968,6 +1968,43 @@ switch ($action) {
         jsonSuccess([], "'{$card['name_ko']}' 카드가 삭제되었습니다");
         break;
 
+    case 'test_dates':
+        $admin = requireSystem();
+        $db = getDB();
+        $stmt = $db->query('SELECT * FROM junior_test_dates ORDER BY id');
+        jsonSuccess(['test_dates' => $stmt->fetchAll()]);
+
+    case 'update_test_dates':
+        if ($method !== 'POST') jsonError('POST required', 405);
+        $admin = requireSystem();
+        $db = getDB();
+        $input = getJsonInput();
+        $dates = $input['dates'] ?? [];
+        if (!is_array($dates)) jsonError('잘못된 데이터');
+
+        $stmt = $db->prepare('SELECT id, test_type, start_date, end_date FROM junior_test_dates WHERE test_type = ?');
+        $update = $db->prepare('UPDATE junior_test_dates SET start_date = ?, end_date = ?, updated_by = ? WHERE test_type = ?');
+
+        foreach ($dates as $d) {
+            $type = $d['test_type'] ?? '';
+            $start = !empty($d['start_date']) ? $d['start_date'] : null;
+            $end = !empty($d['end_date']) ? $d['end_date'] : null;
+
+            $stmt->execute([$type]);
+            $old = $stmt->fetch();
+            if (!$old) continue;
+
+            $update->execute([$start, $end, $admin['system_id'], $type]);
+
+            $oldStr = ($old['start_date'] ?? '없음') . ' ~ ' . ($old['end_date'] ?? '없음');
+            $newStr = ($start ?? '없음') . ' ~ ' . ($end ?? '없음');
+            if ($oldStr !== $newStr) {
+                auditLog('junior_test_dates', $old['id'], 'update', 'date_range', $oldStr, $newStr, '테스트 날짜 변경', $admin['system_id'], 'system', $admin['system_name']);
+            }
+        }
+
+        jsonSuccess([], '테스트 날짜가 저장되었습니다');
+
     default:
         jsonError('알 수 없는 요청입니다', 404);
 }

@@ -81,6 +81,13 @@ try {
                 }
             }
 
+            // 테스트 날짜 정보 조회
+            $tdStmt = $db->query('SELECT test_type, start_date, end_date FROM junior_test_dates');
+            $testDates = [];
+            foreach ($tdStmt->fetchAll() as $td) {
+                $testDates[$td['test_type']] = ['start_date' => $td['start_date'], 'end_date' => $td['end_date']];
+            }
+
             jsonSuccess([
                 'current_level' => $currentLevel ? (int)$currentLevel : null,
                 'bravo_current_level' => $bravoCurrentLevel ? (int)$bravoCurrentLevel : null,
@@ -89,6 +96,7 @@ try {
                 'awaiting_evaluation' => $awaitingEval,
                 'before_completed' => $beforeCompleted,
                 'items' => $items,
+                'test_dates' => $testDates,
             ]);
 
         case 'start_session':
@@ -101,6 +109,24 @@ try {
             $stmt = $db->prepare('SELECT ace_current_level FROM junior_students WHERE id = ?');
             $stmt->execute([$studentId]);
             $currentLevel = $stmt->fetchColumn();
+
+            // 테스트 날짜 가드
+            $aceLevel = $currentLevel ? (int)$currentLevel : 1;
+            if ($aceLevel >= 1 && $aceLevel <= 3) {
+                $testType = 'ace_' . $aceLevel;
+                $tdStmt = $db->prepare('SELECT start_date, end_date FROM junior_test_dates WHERE test_type = ?');
+                $tdStmt->execute([$testType]);
+                $td = $tdStmt->fetch();
+                if ($td) {
+                    $today = date('Y-m-d');
+                    if ($td['start_date'] && $today < $td['start_date']) {
+                        jsonError('테스트 기간이 아닙니다. 시작일: ' . $td['start_date']);
+                    }
+                    if ($td['end_date'] && $today > $td['end_date']) {
+                        jsonError('테스트 기간이 종료되었습니다. 종료일: ' . $td['end_date']);
+                    }
+                }
+            }
 
             // 평가 대기 중인 After 제출이 있으면 차단 (Before만 제출은 허용)
             $stmt = $db->prepare('

@@ -53,7 +53,68 @@ const AceStudentApp = (() => {
         }
 
         statusData = result;
+        checkTestDateBlock();
         renderDashboard();
+    }
+
+    function checkTestDateBlock() {
+        const overlay = document.getElementById('test-disabled-overlay');
+        const info = document.getElementById('test-date-info');
+        if (!overlay || !statusData?.test_dates) return;
+
+        // 현재 학생의 ACE/Bravo 테스트 타입 결정
+        const aceLevel = statusData.current_level || 1;
+        const aceCompleted = aceLevel >= 4;
+        const bravoLevel = aceCompleted ? (statusData.bravo_current_level || 1) : 0;
+
+        let testType = null;
+        if (!aceCompleted && aceLevel >= 1 && aceLevel <= 3) {
+            testType = 'ace_' + aceLevel;
+        } else if (aceCompleted && bravoLevel >= 1 && bravoLevel <= 6) {
+            testType = 'bravo_' + bravoLevel;
+        }
+
+        if (!testType || !statusData.test_dates[testType]) {
+            overlay.style.display = 'none';
+            return;
+        }
+
+        const td = statusData.test_dates[testType];
+        const startDate = td.start_date;
+        const endDate = td.end_date;
+
+        // 둘 다 null → 제한 없음
+        if (!startDate && !endDate) {
+            overlay.style.display = 'none';
+            return;
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        let blocked = false;
+        if (startDate && today < startDate) blocked = true;
+        if (endDate && today > endDate) blocked = true;
+
+        if (!blocked) {
+            overlay.style.display = 'none';
+            return;
+        }
+
+        // 날짜 정보 표시
+        let dateText = '';
+        const fmt = (d) => { const p = d.split('-'); return parseInt(p[1]) + '월 ' + parseInt(p[2]) + '일'; };
+        if (startDate && endDate) {
+            dateText = '테스트 가능 기간: ' + fmt(startDate) + ' ~ ' + fmt(endDate);
+        } else if (startDate) {
+            dateText = fmt(startDate) + ' 부터 테스트 가능';
+        } else if (endDate) {
+            dateText = fmt(endDate) + ' 까지 테스트 가능';
+        }
+
+        if (info && dateText) {
+            info.textContent = dateText;
+            info.style.display = 'block';
+        }
+        overlay.style.display = 'flex';
     }
 
     function renderDashboard() {
