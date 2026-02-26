@@ -63,7 +63,12 @@ const AceStudentApp = (() => {
         if (!overlay || !statusData?.test_dates) return;
 
         // 현재 학생의 ACE/Bravo 테스트 타입 결정
-        const aceLevel = statusData.current_level || 1;
+        // Before 녹음 (level === null)은 기간 제한 없이 허용
+        const aceLevel = statusData.current_level;
+        if (aceLevel === null) {
+            overlay.style.display = 'none';
+            return;
+        }
         const aceCompleted = aceLevel >= 4;
         const bravoLevel = aceCompleted ? (statusData.bravo_current_level || 1) : 0;
 

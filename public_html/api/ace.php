@@ -110,8 +110,8 @@ try {
             $stmt->execute([$studentId]);
             $currentLevel = $stmt->fetchColumn();
 
-            // 테스트 날짜 가드
-            $aceLevel = $currentLevel ? (int)$currentLevel : 1;
+            // 테스트 날짜 가드 (Before 녹음 = level null은 제한 없음)
+            $aceLevel = $currentLevel ? (int)$currentLevel : 0;
             if ($aceLevel >= 1 && $aceLevel <= 3) {
                 $testType = 'ace_' . $aceLevel;
                 $tdStmt = $db->prepare('SELECT start_date, end_date FROM junior_test_dates WHERE test_type = ?');
