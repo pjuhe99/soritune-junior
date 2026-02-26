@@ -767,17 +767,15 @@ switch ($action) {
             $history = $stmt->fetchAll();
 
         } elseif ($code === 'ace') {
+            // 도전왕: reward_log 기반 (실제 지급 기록)
             $stmt = $db->prepare('
-                SELECT DATE(submitted_at) AS created_at, 1 AS change_amount
-                FROM junior_ace_submissions
-                WHERE student_id = ? AND status IN (\'submitted\', \'evaluated\') AND submitted_at IS NOT NULL
-                UNION ALL
-                SELECT DATE(submitted_at) AS created_at, 1 AS change_amount
-                FROM junior_bravo_submissions
-                WHERE student_id = ? AND status IN (\'submitted\', \'confirmed\') AND submitted_at IS NOT NULL
-                ORDER BY created_at DESC
+                SELECT rl.created_at, rl.change_amount
+                FROM junior_reward_log rl
+                JOIN junior_reward_types rt ON rl.reward_type_id = rt.id
+                WHERE rl.student_id = ? AND rt.code = ? AND rl.change_amount > 0
+                ORDER BY rl.created_at DESC
             ');
-            $stmt->execute([$studentId, $studentId]);
+            $stmt->execute([$studentId, 'ace']);
             $history = $stmt->fetchAll();
 
         } elseif (isset($cardToField[$code])) {
