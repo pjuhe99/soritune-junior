@@ -88,12 +88,8 @@ const AceStudentApp = (() => {
         const startDate = td.start_date;
         const endDate = td.end_date;
 
-        // 둘 중 하나라도 없으면 → 차단 (날짜 미설정)
+        // 둘 중 하나라도 없으면 → 차단
         if (!startDate || !endDate) {
-            if (info) {
-                info.textContent = '테스트 기간이 아직 설정되지 않았습니다';
-                info.style.display = 'block';
-            }
             overlay.style.display = 'flex';
             return;
         }
