@@ -318,6 +318,7 @@ try {
             $db->beginTransaction();
             try {
                 $mainLevel = 0;
+                $hasAfter = false;
                 foreach ($submissionIds as $subId) {
                     $subId = (int)$subId;
                     $stmt = $db->prepare('SELECT id, ace_level, role, status FROM junior_ace_submissions WHERE id = ? AND student_id = ?');
@@ -346,19 +347,24 @@ try {
 
                     if ($sub['role'] === 'after') {
                         $mainLevel = $sub['ace_level'];
+                        $hasAfter = true;
                     }
                     if ($mainLevel === 0) {
                         $mainLevel = $sub['ace_level']; // before-only (입학)
                     }
                 }
 
-                // 코인 지급 (도전당 1회, +3)
-                $coinResult = changeReward($studentId, 'ace', 1, 'ace_submission', "ACE{$mainLevel} 제출");
-                if ($coinResult['success']) {
-                    // 제출 세션에 코인 기록
-                    foreach ($submissionIds as $subId) {
-                        $db->prepare('UPDATE junior_ace_submissions SET coins_awarded = 3 WHERE id = ? AND role = ?')
-                           ->execute([(int)$subId, $mainLevel > 0 ? 'after' : 'before']);
+                // Before-only(입학) 제출 시에만 즉시 카드 지급
+                // After 포함 제출은 코치 평가 완료 시 지급
+                $coinsAwarded = 0;
+                if (!$hasAfter) {
+                    $coinResult = changeReward($studentId, 'ace', 1, 'ace_before_submit', "ACE{$mainLevel} Before 제출");
+                    if ($coinResult['success']) {
+                        $coinsAwarded = 3;
+                        foreach ($submissionIds as $subId) {
+                            $db->prepare('UPDATE junior_ace_submissions SET coins_awarded = 3 WHERE id = ?')
+                               ->execute([(int)$subId]);
+                        }
                     }
                 }
 
@@ -366,10 +372,14 @@ try {
 
                 $totalCoins = getStudentTotalCoins($studentId);
 
+                $msg = $coinsAwarded > 0
+                    ? "ACE{$mainLevel} 녹음이 제출되었습니다! +3코인"
+                    : "ACE{$mainLevel} 녹음이 제출되었습니다! 코치 평가 후 코인이 지급됩니다.";
+
                 jsonSuccess([
-                    'coins_awarded' => 3,
+                    'coins_awarded' => $coinsAwarded,
                     'total_coins' => $totalCoins,
-                    'message' => "ACE{$mainLevel} 녹음이 제출되었습니다! +3코인",
+                    'message' => $msg,
                 ]);
 
             } catch (Exception $e) {
@@ -710,14 +720,37 @@ try {
                        ->execute([$nextLevel, $studentIdParam, $aceLevel]);
                 }
 
+                // 카드 지급 (시험당 1회, 중복 방지)
+                // source_detail로 "ACE{level} 평가" 키를 사용하여 이미 지급했는지 체크
+                $rewardKey = "ACE{$aceLevel} 평가";
+                $stmt = $db->prepare('
+                    SELECT COUNT(*) FROM junior_reward_log
+                    WHERE student_id = ? AND source = ? AND source_detail = ?
+                ');
+                $stmt->execute([$studentIdParam, 'ace_eval_complete', $rewardKey]);
+                $alreadyRewarded = (int)$stmt->fetchColumn() > 0;
+
+                $coinsAwarded = 0;
+                if (!$alreadyRewarded) {
+                    $coinResult = changeReward($studentIdParam, 'ace', 1, 'ace_eval_complete', $rewardKey, $admin['admin_id'], 'coach');
+                    if ($coinResult['success']) {
+                        $coinsAwarded = 3;
+                        // after submission에 코인 기록
+                        $db->prepare('UPDATE junior_ace_submissions SET coins_awarded = 3 WHERE id = ?')
+                           ->execute([$afterSubId]);
+                    }
+                }
+
                 $db->commit();
 
+                $coinMsg = $coinsAwarded > 0 ? " (+3코인 지급)" : "";
                 jsonSuccess([
                     'evaluation_id' => $evalId,
                     'report_token' => $reportToken,
-                    'message' => $result === 'pass'
+                    'coins_awarded' => $coinsAwarded,
+                    'message' => ($result === 'pass'
                         ? "ACE{$aceLevel} PASS 처리되었습니다!"
-                        : "ACE{$aceLevel} 재도전으로 처리되었습니다.",
+                        : "ACE{$aceLevel} 재도전으로 처리되었습니다.") . $coinMsg,
                 ]);
 
             } catch (Exception $e) {

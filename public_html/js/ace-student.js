@@ -702,17 +702,25 @@ const AceStudentApp = (() => {
     function renderCelebration(result) {
         AceRecorder.cleanup();
         const container = document.getElementById('view-main');
+        const coinsAwarded = result.coins_awarded || 0;
+
+        const coinHtml = coinsAwarded > 0
+            ? `<div class="ace-coin-drop">
+                    <div class="ace-coin-icon">🪙</div>
+                    <div class="ace-coin-text">+${coinsAwarded} 코인!</div>
+                </div>`
+            : '';
+        const subText = coinsAwarded > 0
+            ? '코치 선생님이 소리를 들어볼 거야!'
+            : '코치 선생님이 평가하면 코인을 받을 수 있어!';
 
         container.innerHTML = `
             <div class="ace-celebration">
                 <div class="ace-confetti" id="confetti-container"></div>
                 <div class="ace-celebration-content">
-                    <div class="ace-coin-drop">
-                        <div class="ace-coin-icon">🪙</div>
-                        <div class="ace-coin-text">+3 코인!</div>
-                    </div>
+                    ${coinHtml}
                     <div class="ace-celebration-title">🎉 녹음 제출 완료!</div>
-                    <div class="ace-celebration-sub">코치 선생님이 소리를 들어볼 거야!</div>
+                    <div class="ace-celebration-sub">${subText}</div>
                     <button class="ace-btn ace-btn-primary ace-btn-lg" id="btn-back-dashboard">
                         확인
                     </button>
