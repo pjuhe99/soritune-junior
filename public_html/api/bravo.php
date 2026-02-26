@@ -134,11 +134,14 @@ try {
                 $tdStmt->execute([$testType]);
                 $td = $tdStmt->fetch();
                 if ($td) {
+                    if (!$td['start_date'] || !$td['end_date']) {
+                        jsonError('테스트 기간이 설정되지 않았습니다');
+                    }
                     $today = date('Y-m-d');
-                    if ($td['start_date'] && $today < $td['start_date']) {
+                    if ($today < $td['start_date']) {
                         jsonError('테스트 기간이 아닙니다. 시작일: ' . $td['start_date']);
                     }
-                    if ($td['end_date'] && $today > $td['end_date']) {
+                    if ($today > $td['end_date']) {
                         jsonError('테스트 기간이 종료되었습니다. 종료일: ' . $td['end_date']);
                     }
                 }

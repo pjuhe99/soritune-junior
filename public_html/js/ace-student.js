@@ -88,16 +88,18 @@ const AceStudentApp = (() => {
         const startDate = td.start_date;
         const endDate = td.end_date;
 
-        // 둘 다 null → 제한 없음
-        if (!startDate && !endDate) {
-            overlay.style.display = 'none';
+        // 둘 중 하나라도 없으면 → 차단 (날짜 미설정)
+        if (!startDate || !endDate) {
+            if (info) {
+                info.textContent = '테스트 기간이 아직 설정되지 않았습니다';
+                info.style.display = 'block';
+            }
+            overlay.style.display = 'flex';
             return;
         }
 
         const today = new Date().toISOString().slice(0, 10);
-        let blocked = false;
-        if (startDate && today < startDate) blocked = true;
-        if (endDate && today > endDate) blocked = true;
+        const blocked = today < startDate || today > endDate;
 
         if (!blocked) {
             overlay.style.display = 'none';
@@ -105,15 +107,8 @@ const AceStudentApp = (() => {
         }
 
         // 날짜 정보 표시
-        let dateText = '';
         const fmt = (d) => { const p = d.split('-'); return parseInt(p[1]) + '월 ' + parseInt(p[2]) + '일'; };
-        if (startDate && endDate) {
-            dateText = '테스트 가능 기간: ' + fmt(startDate) + ' ~ ' + fmt(endDate);
-        } else if (startDate) {
-            dateText = fmt(startDate) + ' 부터 테스트 가능';
-        } else if (endDate) {
-            dateText = fmt(endDate) + ' 까지 테스트 가능';
-        }
+        const dateText = '테스트 가능 기간: ' + fmt(startDate) + ' ~ ' + fmt(endDate);
 
         if (info && dateText) {
             info.textContent = dateText;
