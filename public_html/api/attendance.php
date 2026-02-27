@@ -148,69 +148,80 @@ switch ($action) {
         ]);
 
         // 자동화: 줌출석 체크 + 열정왕 카드
+        // 트랜잭션으로 감싸 student_rewards/reward_log/checklist 원자성 보장
         $today = date('Y-m-d');
         $autoZoom = getSetting('attendance_auto_zoom', true);
         $autoPassion = getSetting('attendance_auto_passion', true);
 
-        // 열정왕 카드 먼저 지급 (체크리스트 기반 한도 체크이므로 체크리스트 업데이트 전에 실행)
         $cardWarning = null;
         $passionBlocked = false;
-        if ($autoPassion) {
-            $result = changeReward($studentId, 'passion', 1, 'qr_attendance', 'QR 출석 자동 부여', null, 'auto');
-            if (!$result['success']) {
-                $passionBlocked = true;
-                if ($result['error'] === 'weekly_limit_exceeded') {
-                    $cardWarning = '열정왕 카드는 이번 주 다 받았어!';
+
+        $db->beginTransaction();
+        try {
+            // 열정왕 카드 먼저 지급 (체크리스트 기반 한도 체크이므로 체크리스트 업데이트 전에 실행)
+            if ($autoPassion) {
+                $result = changeReward($studentId, 'passion', 1, 'qr_attendance', 'QR 출석 자동 부여', null, 'auto');
+                if (!$result['success']) {
+                    $passionBlocked = true;
+                    if ($result['error'] === 'weekly_limit_exceeded') {
+                        $cardWarning = '열정왕 카드는 이번 주 다 받았어!';
+                    }
                 }
             }
-        }
 
-        // 카드가 한도 등으로 차단된 경우 zoom_attendance도 올리지 않음
-        // (zoom_attendance = 카드 사용량 기준이므로 실제 지급과 동기화 필요)
-        if ($autoZoom && !$passionBlocked) {
-            // 학생의 본반 + 담당 코치 조회
-            $stmt = $db->prepare('
-                SELECT cs.class_id, ac.admin_id as coach_id
-                FROM junior_class_students cs
-                LEFT JOIN junior_admin_classes ac ON cs.class_id = ac.class_id
-                WHERE cs.student_id = ? AND cs.is_active = 1 AND cs.is_primary = 1
-                LIMIT 1
-            ');
-            $stmt->execute([$studentId]);
-            $homeClass = $stmt->fetch();
+            // 카드가 한도 등으로 차단된 경우 zoom_attendance도 올리지 않음
+            // (zoom_attendance = 카드 사용량 기준이므로 실제 지급과 동기화 필요)
+            if ($autoZoom && !$passionBlocked) {
+                // 학생의 본반 + 담당 코치 조회
+                $stmt = $db->prepare('
+                    SELECT cs.class_id, ac.admin_id as coach_id
+                    FROM junior_class_students cs
+                    LEFT JOIN junior_admin_classes ac ON cs.class_id = ac.class_id
+                    WHERE cs.student_id = ? AND cs.is_active = 1 AND cs.is_primary = 1
+                    LIMIT 1
+                ');
+                $stmt->execute([$studentId]);
+                $homeClass = $stmt->fetch();
 
-            $checkClassId = $homeClass ? (int)$homeClass['class_id'] : (int)$qrSession['class_id'];
-            $checkCoachId = $homeClass ? (int)$homeClass['coach_id'] : (int)$qrSession['created_by'];
+                $checkClassId = $homeClass ? (int)$homeClass['class_id'] : (int)$qrSession['class_id'];
+                $checkCoachId = $homeClass ? (int)$homeClass['coach_id'] : (int)$qrSession['created_by'];
 
-            // coach_id FK 검증: junior_admins에 존재하는지 확인
-            if ($checkCoachId > 0) {
-                $coachCheck = $db->prepare('SELECT id FROM junior_admins WHERE id = ?');
-                $coachCheck->execute([$checkCoachId]);
-                if (!$coachCheck->fetch()) {
+                // coach_id FK 검증: junior_admins에 존재하는지 확인
+                if ($checkCoachId > 0) {
+                    $coachCheck = $db->prepare('SELECT id FROM junior_admins WHERE id = ?');
+                    $coachCheck->execute([$checkCoachId]);
+                    if (!$coachCheck->fetch()) {
+                        $checkCoachId = null;
+                    }
+                } else {
                     $checkCoachId = null;
                 }
-            } else {
-                $checkCoachId = null;
-            }
 
-            // 오늘의 체크리스트에 줌출석 +1
-            $stmt = $db->prepare('
-                SELECT id FROM junior_daily_checklist
-                WHERE student_id = ? AND check_date = ? AND class_id = ?
-            ');
-            $stmt->execute([$studentId, $today, $checkClassId]);
-            $checklist = $stmt->fetch();
-
-            if ($checklist) {
-                $stmt = $db->prepare('UPDATE junior_daily_checklist SET zoom_attendance = zoom_attendance + 1 WHERE id = ?');
-                $stmt->execute([$checklist['id']]);
-            } else {
+                // 오늘의 체크리스트에 줌출석 +1
                 $stmt = $db->prepare('
-                    INSERT INTO junior_daily_checklist (student_id, class_id, check_date, coach_id, zoom_attendance)
-                    VALUES (?, ?, ?, ?, 1)
+                    SELECT id FROM junior_daily_checklist
+                    WHERE student_id = ? AND check_date = ? AND class_id = ?
                 ');
-                $stmt->execute([$studentId, $checkClassId, $today, $checkCoachId]);
+                $stmt->execute([$studentId, $today, $checkClassId]);
+                $checklist = $stmt->fetch();
+
+                if ($checklist) {
+                    $stmt = $db->prepare('UPDATE junior_daily_checklist SET zoom_attendance = zoom_attendance + 1 WHERE id = ?');
+                    $stmt->execute([$checklist['id']]);
+                } else {
+                    $stmt = $db->prepare('
+                        INSERT INTO junior_daily_checklist (student_id, class_id, check_date, coach_id, zoom_attendance)
+                        VALUES (?, ?, ?, ?, 1)
+                    ');
+                    $stmt->execute([$studentId, $checkClassId, $today, $checkCoachId]);
+                }
             }
+
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            // 카드/체크리스트 실패해도 출석 자체는 이미 기록됨 — 에러 로그만 남김
+            error_log("QR attendance reward/checklist failed for student {$studentId}: " . $e->getMessage());
         }
 
         $responseData = [
