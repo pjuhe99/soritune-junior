@@ -154,14 +154,20 @@ switch ($action) {
 
         // 열정왕 카드 먼저 지급 (체크리스트 기반 한도 체크이므로 체크리스트 업데이트 전에 실행)
         $cardWarning = null;
+        $passionBlocked = false;
         if ($autoPassion) {
             $result = changeReward($studentId, 'passion', 1, 'qr_attendance', 'QR 출석 자동 부여', null, 'auto');
-            if (!$result['success'] && $result['error'] === 'weekly_limit_exceeded') {
-                $cardWarning = '열정왕 카드는 이번 주 다 받았어!';
+            if (!$result['success']) {
+                $passionBlocked = true;
+                if ($result['error'] === 'weekly_limit_exceeded') {
+                    $cardWarning = '열정왕 카드는 이번 주 다 받았어!';
+                }
             }
         }
 
-        if ($autoZoom) {
+        // 카드가 한도 등으로 차단된 경우 zoom_attendance도 올리지 않음
+        // (zoom_attendance = 카드 사용량 기준이므로 실제 지급과 동기화 필요)
+        if ($autoZoom && !$passionBlocked) {
             // 학생의 본반 + 담당 코치 조회
             $stmt = $db->prepare('
                 SELECT cs.class_id, ac.admin_id as coach_id
