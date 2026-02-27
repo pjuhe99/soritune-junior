@@ -483,21 +483,85 @@ switch ($action) {
         $stmt->execute([$admin['admin_id'], $classId]);
         if (!$stmt->fetch()) jsonError('접근 권한이 없습니다', 403);
 
+        // 기존 체크리스트 조회
+        $stmt = $db->prepare('
+            SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
+            FROM junior_daily_checklist
+            WHERE class_id = ? AND check_date = ?
+        ');
+        $stmt->execute([$classId, $date]);
+        $existing = [];
+        while ($row = $stmt->fetch()) {
+            $existing[$row['student_id']] = $row;
+        }
+
+        // 주간 카드 한도 사전검증 (숫자형 + 불린형 필드 모두)
+        $numCheckFields = ['zoom_attendance', 'posture_king'];
+        $boolCheckFields = ['band_mission', 'leader_king', 'reboot_card'];
+        $limitErrors = [];
+        foreach ($items as $item) {
+            $studentId = (int)$item['student_id'];
+            $prev = $existing[$studentId] ?? null;
+
+            foreach ($numCheckFields as $checkField) {
+                $cardCode = CHECKLIST_CARD_MAP[$checkField];
+                $prevVal = $prev ? (int)$prev[$checkField] : 0;
+                $newVal = (int)($item[$checkField] ?? 0);
+                $diff = $newVal - $prevVal;
+
+                if ($diff > 0) {
+                    $usage = getWeeklyCardUsage($studentId, $cardCode);
+                    if ($usage['limit'] !== null && $diff > $usage['remaining']) {
+                        $typeName = CARD_TYPES[$cardCode]['name'] ?? $cardCode;
+                        $limitErrors[] = [
+                            'student_id' => $studentId,
+                            'name'       => $item['name'] ?? '',
+                            'card'       => $typeName,
+                            'field'      => $checkField,
+                            'requested'  => $diff,
+                            'remaining'  => $usage['remaining'],
+                            'limit'      => $usage['limit'],
+                            'used'       => $usage['used'],
+                        ];
+                    }
+                }
+            }
+
+            foreach ($boolCheckFields as $checkField) {
+                $cardCode = CHECKLIST_CARD_MAP[$checkField] ?? null;
+                if (!$cardCode) continue;
+                $prevVal = $prev ? (int)$prev[$checkField] : 0;
+                $newVal = (int)($item[$checkField] ?? 0);
+                if ($newVal === 1 && $prevVal === 0) {
+                    $usage = getWeeklyCardUsage($studentId, $cardCode);
+                    if ($usage['limit'] !== null && $usage['remaining'] <= 0) {
+                        $typeName = CARD_TYPES[$cardCode]['name'] ?? $cardCode;
+                        $limitErrors[] = [
+                            'student_id' => $studentId,
+                            'name'       => $item['name'] ?? '',
+                            'card'       => $typeName,
+                            'field'      => $checkField,
+                            'requested'  => 1,
+                            'remaining'  => 0,
+                            'limit'      => $usage['limit'],
+                            'used'       => $usage['used'],
+                        ];
+                    }
+                }
+            }
+        }
+
+        if (!empty($limitErrors)) {
+            $msgs = array_map(function($e) {
+                $name = $e['name'] ?: "학생#{$e['student_id']}";
+                return "{$name}: {$e['card']} 요청 {$e['requested']}장, 남은 한도 {$e['remaining']}장";
+            }, $limitErrors);
+            jsonError('주간 카드 한도를 초과합니다 — ' . implode(', ', $msgs), 400, ['limit_errors' => $limitErrors]);
+        }
+
         $db->beginTransaction();
 
         try {
-            // 기존 체크리스트 조회
-            $stmt = $db->prepare('
-                SELECT student_id, zoom_attendance, posture_king, sound_homework, band_mission, leader_king, reboot_card
-                FROM junior_daily_checklist
-                WHERE class_id = ? AND check_date = ?
-            ');
-            $stmt->execute([$classId, $date]);
-            $existing = [];
-            while ($row = $stmt->fetch()) {
-                $existing[$row['student_id']] = $row;
-            }
-
             foreach ($items as $item) {
                 $studentId = (int)$item['student_id'];
                 $fields = [
@@ -533,24 +597,38 @@ switch ($action) {
                     $fields['reboot_card'],
                 ]);
 
-                // 체크 변경 시 카드 자동 부여/차감
+                // 체크 변경 시 카드 자동 부여/차감 (숫자형 + 불린형 분리 처리)
                 foreach (CHECKLIST_CARD_MAP as $checkField => $cardCode) {
                     if ($checkField === 'sound_homework') continue; // 꾸준왕은 주간 판정으로 별도 처리
 
                     $prevVal = $prev ? (int)$prev[$checkField] : 0;
                     $newVal = $fields[$checkField];
 
-                    if ($newVal === 1 && $prevVal === 0) {
-                        $result = changeReward($studentId, $cardCode, 1, 'checklist',
-                            "체크리스트: {$checkField} ({$date})",
-                            $admin['admin_id'], 'admin_teacher');
-                        if (!$result['success'] && $result['error'] === 'weekly_limit_exceeded') {
-                            throw new Exception($result['message'] ?? '주간 카드 한도 초과');
+                    if (in_array($checkField, $numCheckFields, true)) {
+                        // 숫자형 필드: 증감분만큼 카드 지급/차감
+                        $diff = $newVal - $prevVal;
+                        if ($diff !== 0) {
+                            $result = changeReward($studentId, $cardCode, $diff, 'checklist',
+                                "체크리스트: {$checkField} {$prevVal}→{$newVal} ({$date})",
+                                $admin['admin_id'], 'admin_teacher');
+                            if (!$result['success']) {
+                                throw new Exception($result['message'] ?? '카드 지급 실패');
+                            }
                         }
-                    } elseif ($newVal === 0 && $prevVal === 1) {
-                        changeReward($studentId, $cardCode, -1, 'checklist',
-                            "체크리스트 해제: {$checkField} ({$date})",
-                            $admin['admin_id'], 'admin_teacher');
+                    } else {
+                        // 불린형 필드: 0/1 토글
+                        if ($newVal === 1 && $prevVal === 0) {
+                            $result = changeReward($studentId, $cardCode, 1, 'checklist',
+                                "체크리스트: {$checkField} ({$date})",
+                                $admin['admin_id'], 'admin_teacher');
+                            if (!$result['success'] && $result['error'] === 'weekly_limit_exceeded') {
+                                throw new Exception($result['message'] ?? '주간 카드 한도 초과');
+                            }
+                        } elseif ($newVal === 0 && $prevVal === 1) {
+                            changeReward($studentId, $cardCode, -1, 'checklist',
+                                "체크리스트 해제: {$checkField} ({$date})",
+                                $admin['admin_id'], 'admin_teacher');
+                        }
                     }
                 }
 
